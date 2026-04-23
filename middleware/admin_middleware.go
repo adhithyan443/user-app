@@ -16,9 +16,6 @@ func AdminRequired() gin.HandlerFunc{
 		role:=session.Get("role")
 
 		if role != "admin"{
-			// ctx.HTML(http.StatusForbidden, "error.html",gin.H{
-			// 	"error":"Access denied. Admin only.",
-			// })
 			ctx.Redirect(http.StatusFound, "/home")
 			ctx.Abort()
 			return 

@@ -16,12 +16,24 @@ func SetupRoutes(r *gin.Engine) {
 	r.GET("/signup", handlers.ShowSignupPage)
 	r.POST("/signup", handlers.HandleSignup)
 
+	r.GET("/forgotpassword",handlers.ShowForgotPasswordPage)
+	r.POST("/forgotpassword",handlers.HandleForgotPassword)
+
 	//middleware
 	protected := r.Group("/")
 	protected.Use(middleware.AuthRequired())
 	{
 		protected.GET("/home", handlers.ShowHomePage)
 		protected.GET("/logout", handlers.HandleLogout)
+
+
+		//User route
+		protected.GET("/profile",handlers.ShowProfilePage)
+		protected.POST("/profile/update",handlers.UpdateUserProfile)
+
+		protected.GET("/password",handlers.ShowChangePasswordPage)
+		protected.POST("/password",handlers.ChangePassword)
+
 
 		//admin route
 		admin := protected.Group("/admin")

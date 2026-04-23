@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	
 	"net/http"
 	"user-app/config"
 	"user-app/models"
@@ -11,7 +12,15 @@ import (
 )
 
 func ShowLoginPage(ctx *gin.Context) {
-	ctx.HTML(http.StatusOK, "login.html", nil)
+
+	session := sessions.Default(ctx)
+	msg := session.Get("message")
+	session.Delete("message")
+	session.Save()
+
+	ctx.HTML(http.StatusOK, "login.html", gin.H{
+		"message": msg,
+	})
 }
 
 // Login Handler
@@ -46,7 +55,6 @@ func HandleLogin(ctx *gin.Context) {
 
 	//session setup
 	session := sessions.Default(ctx)
-
 	session.Set("user_id", user.ID)
 	session.Set("email", user.Email)
 	session.Set("name", user.Name)
@@ -86,7 +94,7 @@ func ShowAdminPage(ctx *gin.Context) {
 	ctx.HTML(http.StatusOK, "admin.html", gin.H{
 		"Title": "Admin Dashboard",
 		"User":  "Admin User",
-		"Count":userCount,
+		"Count": userCount,
 	})
 }
 
@@ -118,6 +126,9 @@ func HandleSignup(ctx *gin.Context) {
 		})
 	}
 
+	session := sessions.Default(ctx)
+	session.Set("message", "Profile created successfully")
+	session.Save()
 	ctx.Redirect(http.StatusSeeOther, "/login")
 }
 
@@ -128,4 +139,72 @@ func HandleLogout(ctx *gin.Context) {
 	session.Save()
 
 	ctx.Redirect(http.StatusFound, "/login")
+}
+
+func ShowForgotPasswordPage(ctx *gin.Context) {
+	session := sessions.Default(ctx)
+	msg := session.Get("message")
+	session.Delete("message")
+	session.Save()
+
+	ctx.HTML(http.StatusOK, "forgotpassword.html", gin.H{
+		"account": true,
+		"message": msg,
+	})
+}
+
+func HandleForgotPassword(ctx *gin.Context) {
+	session := sessions.Default(ctx)
+	email := ctx.PostForm("email")
+	// id:=ctx.Param("id")
+
+	if email != "" {
+		var user_id int
+		err := config.DB.QueryRow("SELECT id FROM users WHERE email =$1", email).Scan(&user_id)
+
+		if err != nil {
+
+			session.Set("message", "User not exsists")
+			session.Save()
+			ctx.Redirect(http.StatusSeeOther, "/forgotpassword")
+			return
+		}
+
+		session.Set("reset_id", user_id)
+		session.Save()
+		ctx.HTML(http.StatusOK, "forgotpassword.html", gin.H{
+			"account": false,
+		})
+
+	} else {
+		id := session.Get("reset_id")
+		newpass := ctx.PostForm("newpassword")
+		confirmpass := ctx.PostForm("confirmpassword")
+
+		if newpass != confirmpass {
+			session.Set("message", "Password do not match")
+			session.Save()
+			ctx.Redirect(http.StatusSeeOther, "/forgotpassword")
+			return
+		}
+
+		hashed_password, err := bcrypt.GenerateFromPassword([]byte(newpass), bcrypt.DefaultCost)
+		if err != nil {
+			ctx.String(http.StatusInternalServerError, "Error hashing password")
+			return
+		}
+
+		_, err = config.DB.Exec("UPDATE users SET hashed_password = $1 WHERE id=$2", hashed_password, id)
+		if err != nil {
+			ctx.String(http.StatusInternalServerError, "Database error")
+			return
+		}
+
+		session.Delete("reset_id")
+		session.Set("message", "Password updated successfully")
+		session.Save()
+
+		ctx.Redirect(http.StatusSeeOther, "/login")
+
+	}
 }
