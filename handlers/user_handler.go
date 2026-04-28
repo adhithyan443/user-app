@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"regexp"
 	"user-app/config"
 	"user-app/models"
 
@@ -41,6 +42,29 @@ func UpdateUserProfile(ctx *gin.Context) {
 	name := ctx.PostForm("name")
 	email := ctx.PostForm("email")
 
+	if name == "" || email == "" {
+		session.Set("message", "All fields are required")
+		session.Save()
+		ctx.Redirect(http.StatusSeeOther, "/profile")
+		return
+	}
+
+	if len(name) < 3 {
+		session.Set("message", "Name must be at least 3 characters")
+		session.Save()
+		ctx.Redirect(http.StatusSeeOther, "/profile")
+		return
+	}
+
+	nameRegex := regexp.MustCompile(`^[a-zA-Z ]+$`)
+	if !nameRegex.MatchString(name) {
+		session.Set("message", "Name should contain only letters")
+		session.Save()
+		ctx.Redirect(http.StatusSeeOther, "/profile")
+		return
+	}
+
+	
 	_, err := config.DB.Exec(
 		"UPDATE users SET name=$1,email=$2 WHERE id=$3", name, email, id,
 	)

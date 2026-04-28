@@ -1,8 +1,8 @@
 package handlers
 
 import (
-	
 	"net/http"
+	"regexp"
 	"user-app/config"
 	"user-app/models"
 
@@ -17,6 +17,15 @@ func ShowLoginPage(ctx *gin.Context) {
 	msg := session.Get("message")
 	session.Delete("message")
 	session.Save()
+
+	if session.Get("user_id") != nil {
+		if session.Get("role") == "admin" {
+			ctx.Redirect(http.StatusSeeOther, "/admin")
+		} else {
+			ctx.Redirect(http.StatusSeeOther, "/home")
+		}
+
+	}
 
 	ctx.HTML(http.StatusOK, "login.html", gin.H{
 		"message": msg,
@@ -107,6 +116,31 @@ func HandleSignup(ctx *gin.Context) {
 	name := ctx.PostForm("name")
 	email := ctx.PostForm("email")
 	password := ctx.PostForm("password")
+
+	//Validation
+
+	if name == "" || email == "" || password == "" {
+		ctx.HTML(http.StatusBadRequest, "signup.html", gin.H{
+			"error": "All fields are required",
+		})
+		return
+	}
+
+	if len(name) < 3 {
+		ctx.HTML(http.StatusBadRequest, "signup.html", gin.H{
+			"error": "Name must be at least 3 characters",
+		})
+		return
+	}
+
+	var nameRegex = regexp.MustCompile(`^[a-zA-Z ]+$`)
+
+	if !nameRegex.MatchString(name) {
+		ctx.HTML(http.StatusBadRequest, "signup.html", gin.H{
+			"error": "Name should contain only letters",
+		})
+		return
+	}
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 

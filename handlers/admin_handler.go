@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
+	"regexp"
 	"strconv"
 	"user-app/config"
 	"user-app/models"
@@ -11,6 +12,7 @@ import (
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
+	// "golang.org/x/text/message"
 )
 
 func GetAllUser(ctx *gin.Context) {
@@ -63,6 +65,12 @@ func GetAllUser(ctx *gin.Context) {
 
 func EditUserPage(ctx *gin.Context) {
 
+	session := sessions.Default(ctx)
+
+	msg := session.Get("message")
+	session.Delete("message")
+	session.Save()
+
 	idparam := ctx.Param("id")
 	// fmt.Println("ID from URL:", idparam)
 	id, err := strconv.Atoi(idparam)
@@ -83,7 +91,8 @@ func EditUserPage(ctx *gin.Context) {
 	}
 
 	ctx.HTML(http.StatusOK, "edit_user.html", gin.H{
-		"user": user,
+		"user":    user,
+		"message": msg,
 	})
 }
 
@@ -100,6 +109,38 @@ func UpdateUserPage(ctx *gin.Context) {
 	name := ctx.PostForm("name")
 	email := ctx.PostForm("email")
 	role := ctx.PostForm("role")
+	session := sessions.Default(ctx)
+
+	if name == "" || email == "" || role == "" {
+		session.Set("message", "All fields are required")
+		session.Save()
+		ctx.Redirect(http.StatusSeeOther, "/admin/users/edit/"+idParam)
+		return
+	}
+
+	// Name validation
+	if len(name) < 3 {
+		session.Set("message", "Name must be at least 3 characters")
+		session.Save()
+		ctx.Redirect(http.StatusSeeOther, "/admin/users/edit/"+idParam)
+		return
+	}
+
+	nameRegex := regexp.MustCompile(`^[a-zA-Z ]+$`)
+	if !nameRegex.MatchString(name) {
+		session.Set("message", "Name should contain only letters")
+		session.Save()
+		ctx.Redirect(http.StatusSeeOther, "/admin/users/edit/"+idParam)
+		return
+	}
+
+	// Role validation
+	if role != "admin" && role != "user" {
+		session.Set("message", "Invalid role selected")
+		session.Save()
+		ctx.Redirect(http.StatusSeeOther, "/admin/users/edit/"+idParam)
+		return
+	}
 
 	_, err = config.DB.Exec(
 		"UPDATE users SET name=$1, email=$2, role=$3 WHERE id=$4",
@@ -111,13 +152,74 @@ func UpdateUserPage(ctx *gin.Context) {
 		return
 	}
 
-	session := sessions.Default(ctx)
 	session.Set("message", "User updated successfully")
 	session.Save()
 
 	ctx.Redirect(http.StatusFound, "/admin/users")
 	// successMsg := "User updated successfully!"
 	// ctx.Redirect(http.StatusFound, fmt.Sprintf("/admin/users/edit/%d?success=%s", id, successMsg))
+}
+
+func ShowUserPasswordPage(ctx *gin.Context) {
+
+	session := sessions.Default(ctx)
+	id := ctx.Param("id")
+	msg := session.Get("message")
+	session.Delete("message")
+	session.Save()
+	ctx.HTML(http.StatusOK, "admin_changepassword.html", gin.H{
+		"message": msg,
+		"id":      id,
+	})
+}
+
+func EditUserPasswordPage(ctx *gin.Context) {
+
+	session := sessions.Default(ctx)
+
+	newpassword := ctx.PostForm("newpassword")
+	confirmpassword := ctx.PostForm("confirmpassword")
+	id := ctx.Param("id")
+
+	if len(newpassword) < 6 {
+		session.Set("message", "Password must be at least 6 characters")
+		session.Save()
+		ctx.Redirect(http.StatusSeeOther, "/admin/users/updatepassword/"+id)
+		return
+	}
+
+	if newpassword != confirmpassword {
+		session.Set("message", "Password do not match")
+		session.Save()
+		ctx.Redirect(http.StatusSeeOther, "/admin/users/updatepassword/"+id)
+		return
+	}
+
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newpassword), bcrypt.DefaultCost)
+
+	if err != nil {
+		session.Set("message", "Failed to process password")
+		session.Save()
+		ctx.Redirect(http.StatusSeeOther, "/admin/users/updatepassword/"+id)
+		return
+	}
+
+	_, err = config.DB.Exec(
+		"UPDATE users SET hashed_password=$1 WHERE id=$2",
+		hashedPassword, id,
+	)
+
+	if err != nil {
+		session.Set("message", "Failed to update password")
+		session.Save()
+		ctx.Redirect(http.StatusSeeOther, "/admin/users/updatepassword/"+id)
+		return
+	}
+
+	session.Set("message", "Password updated successfully")
+	session.Save()
+
+	ctx.Redirect(http.StatusSeeOther, "/admin/users")
 }
 
 func DeleteUser(ctx *gin.Context) {
@@ -154,6 +256,47 @@ func AddNewUser(ctx *gin.Context) {
 	email := ctx.PostForm("email")
 	role := ctx.PostForm("role")
 	password := ctx.PostForm("password")
+
+	// Required fields
+	if name == "" || email == "" || role == "" || password == "" {
+		session.Set("message", "All fields are required")
+		session.Save()
+		ctx.Redirect(http.StatusSeeOther, "/admin/newuser")
+		return
+	}
+
+	// Name validation (letters + space, min 3)
+	if len(name) < 3 {
+		session.Set("message", "Name must be at least 3 characters")
+		session.Save()
+		ctx.Redirect(http.StatusSeeOther, "/admin/newuser")
+		return
+	}
+
+	nameRegex := regexp.MustCompile(`^[a-zA-Z ]+$`)
+	if !nameRegex.MatchString(name) {
+		session.Set("message", "Name should contain only letters")
+		session.Save()
+		ctx.Redirect(http.StatusSeeOther, "/admin/newuser")
+		return
+	}
+
+	// Password validation
+	if len(password) < 6 {
+		session.Set("message", "Password must be at least 6 characters")
+		session.Save()
+		ctx.Redirect(http.StatusSeeOther, "/admin/newuser")
+		return
+	}
+
+	// Role validation
+	if role != "admin" && role != "user" {
+		session.Set("message", "Invalid role selected")
+		session.Save()
+		ctx.Redirect(http.StatusSeeOther, "/admin/newuser")
+		return
+	}
+
 	hashedpassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 
 	if err != nil {
