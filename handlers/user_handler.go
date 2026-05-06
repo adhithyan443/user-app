@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"user-app/config"
 	"user-app/models"
+	"user-app/utils"
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
@@ -44,6 +45,8 @@ func UpdateUserProfile(ctx *gin.Context) {
 
 	if name == "" || email == "" {
 		session.Set("message", "All fields are required")
+		// session.Set("form_name", name)
+		// session.Set("form_email", email)
 		session.Save()
 		ctx.Redirect(http.StatusSeeOther, "/profile")
 		return
@@ -51,6 +54,8 @@ func UpdateUserProfile(ctx *gin.Context) {
 
 	if len(name) < 3 {
 		session.Set("message", "Name must be at least 3 characters")
+		// session.Set("form_name", name)
+		// session.Set("form_email", email)
 		session.Save()
 		ctx.Redirect(http.StatusSeeOther, "/profile")
 		return
@@ -59,12 +64,13 @@ func UpdateUserProfile(ctx *gin.Context) {
 	nameRegex := regexp.MustCompile(`^[a-zA-Z ]+$`)
 	if !nameRegex.MatchString(name) {
 		session.Set("message", "Name should contain only letters")
+		// session.Set("form_name", name)
+		// session.Set("form_email", email)
 		session.Save()
 		ctx.Redirect(http.StatusSeeOther, "/profile")
 		return
 	}
 
-	
 	_, err := config.DB.Exec(
 		"UPDATE users SET name=$1,email=$2 WHERE id=$3", name, email, id,
 	)
@@ -85,17 +91,17 @@ func UpdateUserProfile(ctx *gin.Context) {
 
 func ShowChangePasswordPage(ctx *gin.Context) {
 
-	session:=sessions.Default(ctx)
+	session := sessions.Default(ctx)
 
-	msg:=session.Get("message")
-	errmsg:=session.Get("error")
+	msg := session.Get("message")
+	errmsg := session.Get("error")
 	session.Delete("message")
 	session.Delete("error")
 	session.Save()
 
 	ctx.HTML(http.StatusOK, "user_changepassword.html", gin.H{
-		"message":msg,
-		"error":errmsg,
+		"message": msg,
+		"error":   errmsg,
 	})
 }
 
@@ -107,6 +113,16 @@ func ChangePassword(ctx *gin.Context) {
 	oldPassword := ctx.PostForm("oldpassword")
 	newPassword := ctx.PostForm("newpassword")
 	confirmPassword := ctx.PostForm("confirmpassword")
+
+	//Pass validation
+	if !utils.IsStrongPassword(newPassword) {
+
+		session.Set("error", "Password must contain uppercase, lowercase, number, and special character")
+		session.Save()
+		ctx.Redirect(http.StatusSeeOther, "/password")
+
+		return
+	}
 
 	if newPassword != confirmPassword {
 		session.Set("error", "Password do not match")

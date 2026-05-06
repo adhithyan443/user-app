@@ -58,7 +58,7 @@
                         </a>
                     </li>
                     <li class="nav-item mb-2">
-                        <a href="/admin/users"  class="nav-link">
+                        <a href="/admin/users" class="nav-link">
                             <i class="fas fa-users me-2 text-light"></i><span class="text-light"> Users </span>
                         </a>
                     </li>
@@ -76,8 +76,8 @@
                         <div class="row mb-3">
                             <label class="col-sm-2 col-form-label">Name</label>
                             <div class="col-sm-10">
-                                <input type="text" class="form-control" id="name" name="name" placeholder="Enter name" minlength="3"
-                                    required>
+                                <input type="text" class="form-control" id="name" name="name" placeholder="Enter name"
+                                    minlength="3" value="{{ .form_name }}" required>
                             </div>
                         </div>
 
@@ -85,7 +85,7 @@
                             <label class="col-sm-2 col-form-label">Email</label>
                             <div class="col-sm-10">
                                 <input type="email" class="form-control" name="email" id="email"
-                                    placeholder="Enter email" required>
+                                    value="{{ .form_email }}" placeholder="Enter email" required>
                             </div>
                         </div>
 
@@ -94,8 +94,8 @@
                             <div class="col-sm-10">
                                 <select class="form-select" name="role" required>
                                     <option value="" selected disabled>Select Role</option>
-                                    <option value="admin">Admin</option>
-                                    <option value="user">User</option>
+                                    <option value="admin" {{ if eq .form_role "user" }}selected{{ end }}>Admin</option>
+                                    <option value="user" {{ if eq .form_role "admin" }}selected{{ end }}>User</option>
                                 </select>
                             </div>
                         </fieldset>

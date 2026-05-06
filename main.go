@@ -36,6 +36,7 @@ func main() {
 			return a + b
 		},
 	})
+	
 	//Load HTML templates
 	r.LoadHTMLGlob("templates/**/*.html")
 	// Serve static files (CSS, JS, images)

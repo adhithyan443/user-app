@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"user-app/config"
 	"user-app/models"
+	"user-app/utils"
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
@@ -188,6 +189,13 @@ func EditUserPasswordPage(ctx *gin.Context) {
 		return
 	}
 
+	if !utils.IsStrongPassword(newpassword) {
+		session.Set("message", "Password must contain uppercase, lowercase, number, and special character")
+		session.Save()
+		ctx.Redirect(http.StatusSeeOther, "/admin/users/updatepassword/"+id)
+		return
+	}
+
 	if newpassword != confirmpassword {
 		session.Set("message", "Password do not match")
 		session.Save()
@@ -241,13 +249,25 @@ func DeleteUser(ctx *gin.Context) {
 func NewUserPage(ctx *gin.Context) {
 	session := sessions.Default(ctx)
 
-	msg := session.Get("message")
+	// msg := session.Get("message")
+	data := gin.H{
+		"message":    session.Get("message"),
+		"form_name":  session.Get("form_name"),
+		"form_email": session.Get("form_email"),
+		"form_role":  session.Get("form_role"),
+	}
+
+	session.Delete("form_name")
+	session.Delete("form_email")
+	session.Delete("form_role")
 	session.Delete("message")
 	session.Save()
 
-	ctx.HTML(http.StatusOK, "admin_add_user.html", gin.H{
-		"message": msg,
-	})
+	ctx.HTML(http.StatusOK, "admin_add_user.html", data)
+	// gin.H{
+	// 	// "message": msg,
+	// 	"data":data,
+	// })
 }
 
 func AddNewUser(ctx *gin.Context) {
@@ -257,9 +277,18 @@ func AddNewUser(ctx *gin.Context) {
 	role := ctx.PostForm("role")
 	password := ctx.PostForm("password")
 
+	formData := map[string]interface{}{
+		"form_name":  name,
+		"form_email": email,
+		"form_role":  role,
+	}
+
 	// Required fields
 	if name == "" || email == "" || role == "" || password == "" {
 		session.Set("message", "All fields are required")
+		for k, v := range formData {
+			session.Set(k, v)
+		}
 		session.Save()
 		ctx.Redirect(http.StatusSeeOther, "/admin/newuser")
 		return
@@ -268,6 +297,9 @@ func AddNewUser(ctx *gin.Context) {
 	// Name validation (letters + space, min 3)
 	if len(name) < 3 {
 		session.Set("message", "Name must be at least 3 characters")
+		for k, v := range formData {
+			session.Set(k, v)
+		}
 		session.Save()
 		ctx.Redirect(http.StatusSeeOther, "/admin/newuser")
 		return
@@ -276,6 +308,19 @@ func AddNewUser(ctx *gin.Context) {
 	nameRegex := regexp.MustCompile(`^[a-zA-Z ]+$`)
 	if !nameRegex.MatchString(name) {
 		session.Set("message", "Name should contain only letters")
+		for k, v := range formData {
+			session.Set(k, v)
+		}
+		session.Save()
+		ctx.Redirect(http.StatusSeeOther, "/admin/newuser")
+		return
+	}
+
+	if !utils.IsStrongPassword(password) {
+		session.Set("message", "Password must contain uppercase, lowercase, number, and special character")
+		for k, v := range formData {
+			session.Set(k, v)
+		}
 		session.Save()
 		ctx.Redirect(http.StatusSeeOther, "/admin/newuser")
 		return
@@ -284,6 +329,9 @@ func AddNewUser(ctx *gin.Context) {
 	// Password validation
 	if len(password) < 6 {
 		session.Set("message", "Password must be at least 6 characters")
+		for k, v := range formData {
+			session.Set(k, v)
+		}
 		session.Save()
 		ctx.Redirect(http.StatusSeeOther, "/admin/newuser")
 		return
@@ -292,6 +340,9 @@ func AddNewUser(ctx *gin.Context) {
 	// Role validation
 	if role != "admin" && role != "user" {
 		session.Set("message", "Invalid role selected")
+		for k, v := range formData {
+			session.Set(k, v)
+		}
 		session.Save()
 		ctx.Redirect(http.StatusSeeOther, "/admin/newuser")
 		return
@@ -304,6 +355,9 @@ func AddNewUser(ctx *gin.Context) {
 		// 	"error": "Failed to hash password",
 		// })
 		session.Set("message", "Failed to hash password")
+		for k, v := range formData {
+			session.Set(k, v)
+		}
 		session.Save()
 		ctx.Redirect(http.StatusSeeOther, "/admin/newuser")
 		return
@@ -317,6 +371,9 @@ func AddNewUser(ctx *gin.Context) {
 		// 	"error": "Email already exists or invalid data",
 		// })
 		session.Set("message", "Email already exists or invalid data")
+		for k, v := range formData {
+			session.Set(k, v)
+		}
 		session.Save()
 		ctx.Redirect(http.StatusSeeOther, "/admin/newuser")
 		return

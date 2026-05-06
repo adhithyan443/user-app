@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"user-app/config"
 	"user-app/models"
+	"user-app/utils"
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
@@ -122,6 +123,8 @@ func HandleSignup(ctx *gin.Context) {
 	if name == "" || email == "" || password == "" {
 		ctx.HTML(http.StatusBadRequest, "signup.html", gin.H{
 			"error": "All fields are required",
+			"name":  name,
+			"email": email,
 		})
 		return
 	}
@@ -129,6 +132,8 @@ func HandleSignup(ctx *gin.Context) {
 	if len(name) < 3 {
 		ctx.HTML(http.StatusBadRequest, "signup.html", gin.H{
 			"error": "Name must be at least 3 characters",
+			"name":  name,
+			"email": email,
 		})
 		return
 	}
@@ -138,6 +143,17 @@ func HandleSignup(ctx *gin.Context) {
 	if !nameRegex.MatchString(name) {
 		ctx.HTML(http.StatusBadRequest, "signup.html", gin.H{
 			"error": "Name should contain only letters",
+			"name":  name,
+			"email": email,
+		})
+		return
+	}
+
+	if !utils.IsStrongPassword(password) {
+		ctx.HTML(http.StatusBadRequest, "signup.html", gin.H{
+			"error": "Password must contain uppercase, lowercase, number, and special character",
+			"name":  name,
+			"email": email,
 		})
 		return
 	}
@@ -157,6 +173,8 @@ func HandleSignup(ctx *gin.Context) {
 	if err != nil {
 		ctx.HTML(http.StatusBadRequest, "signup.html", gin.H{
 			"error": "Email already exists or invalid data",
+			"name":  name,
+			"email": email,
 		})
 	}
 
@@ -214,6 +232,14 @@ func HandleForgotPassword(ctx *gin.Context) {
 		id := session.Get("reset_id")
 		newpass := ctx.PostForm("newpassword")
 		confirmpass := ctx.PostForm("confirmpassword")
+
+		if !utils.IsStrongPassword(newpass) {
+			session.Set("message", "Password must contain uppercase, lowercase, number, and special character")
+			session.Save()
+			ctx.Redirect(http.StatusSeeOther, "/forgotpassword")
+
+			return
+		}
 
 		if newpass != confirmpass {
 			session.Set("message", "Password do not match")
