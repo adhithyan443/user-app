@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"log/slog"
 	"net/http"
 	"regexp"
 	"user-app/config"
@@ -25,7 +26,7 @@ func ShowLoginPage(ctx *gin.Context) {
 		} else {
 			ctx.Redirect(http.StatusSeeOther, "/home")
 		}
-
+		return
 	}
 
 	ctx.HTML(http.StatusOK, "login.html", gin.H{
@@ -38,25 +39,24 @@ func HandleLogin(ctx *gin.Context) {
 
 	email := ctx.PostForm("email")
 	password := ctx.PostForm("password")
+
 	var user models.User
 
-	//1. Get user from db
-	query := `SELECT id,name,hashed_password, role FROM users WHERE email=$1`
-
-	err := config.DB.QueryRow(query, email).Scan(&user.ID, &user.Name, &user.HashedPassword, &user.Role)
-
-	//check user exists
+	//find user by email
+	err := config.DB.Where("email = ?", email).First(&user).Error
 	if err != nil {
+		slog.Warn("Login Failed - User not found", "email", email)
 		ctx.HTML(http.StatusUnauthorized, "login.html", gin.H{
 			"error": "Invalid email or password",
 		})
 		return
 	}
 
-	//3. Compare password
-	err = bcrypt.CompareHashAndPassword([]byte(user.HashedPassword), []byte(password))
+	//Compare password
+	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
 
 	if err != nil {
+		slog.Warn("Login failed - wrong password", "email", email)
 		ctx.HTML(http.StatusUnauthorized, "login.html", gin.H{
 			"error": "Invalid email or password",
 		})
@@ -71,7 +71,13 @@ func HandleLogin(ctx *gin.Context) {
 	session.Set("role", user.Role)
 	session.Save()
 
-	//4.Redirect based on role
+	if err := session.Save(); err != nil {
+		slog.Error("Failed to save session", "error", err)
+	}
+
+	slog.Info("User logged in successfully", "user_id", user.ID, "role", user.Role)
+
+	//Redirect based on role
 	if user.Role == "admin" {
 		ctx.Redirect(http.StatusSeeOther, "/admin")
 	} else {
@@ -90,13 +96,11 @@ func ShowHomePage(ctx *gin.Context) {
 
 func ShowAdminPage(ctx *gin.Context) {
 
-	query := `SELECT COUNT(*) FROM users`
+	var count int64
 
-	var userCount int
-
-	err := config.DB.QueryRow(query).Scan(&userCount)
-
+	err := config.DB.Model(&models.User{}).Count(&count).Error
 	if err != nil {
+		slog.Error("Failed to count users", "error", err)
 		ctx.String(http.StatusInternalServerError, "Error fetching user count")
 		return
 	}
@@ -104,7 +108,7 @@ func ShowAdminPage(ctx *gin.Context) {
 	ctx.HTML(http.StatusOK, "admin.html", gin.H{
 		"Title": "Admin Dashboard",
 		"User":  "Admin User",
-		"Count": userCount,
+		"Count": count,
 	})
 }
 
@@ -119,7 +123,6 @@ func HandleSignup(ctx *gin.Context) {
 	password := ctx.PostForm("password")
 
 	//Validation
-
 	if name == "" || email == "" || password == "" {
 		ctx.HTML(http.StatusBadRequest, "signup.html", gin.H{
 			"error": "All fields are required",
@@ -161,22 +164,31 @@ func HandleSignup(ctx *gin.Context) {
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 
 	if err != nil {
+		slog.Error("Failed to hash password")
 		ctx.HTML(http.StatusInternalServerError, "signup.html", gin.H{
 			"error": "Failed to hash password",
 		})
 		return
 	}
 
-	query := `INSERT INTO users(name,email,hashed_password) VALUES ($1,$2,$3)`
-	_, err = config.DB.Exec(query, name, email, hashedPassword)
+	user := models.User{
+		Name:     name,
+		Email:    email,
+		Password: string(hashedPassword),
+		Role:     "user",
+	}
 
-	if err != nil {
+	if err := config.DB.Create(&user).Error; err != nil {
+		slog.Warn("Signup failed - duplicate email?", "email", email, "error", err)
 		ctx.HTML(http.StatusBadRequest, "signup.html", gin.H{
 			"error": "Email already exists or invalid data",
 			"name":  name,
 			"email": email,
 		})
+		return
 	}
+
+	slog.Info("New user registered", "user_id", user.ID, "email", email)
 
 	session := sessions.Default(ctx)
 	session.Set("message", "Profile created successfully")
@@ -211,24 +223,26 @@ func HandleForgotPassword(ctx *gin.Context) {
 	// id:=ctx.Param("id")
 
 	if email != "" {
-		var user_id int
-		err := config.DB.QueryRow("SELECT id FROM users WHERE email =$1", email).Scan(&user_id)
 
+		var user models.User
+
+		err := config.DB.Where("email = ?", email).First(&user).Error
 		if err != nil {
-
+			slog.Warn("Forgot password - user not found", "email", email)
 			session.Set("message", "User not exsists")
 			session.Save()
 			ctx.Redirect(http.StatusSeeOther, "/forgotpassword")
 			return
 		}
 
-		session.Set("reset_id", user_id)
+		session.Set("reset_id", user.ID)
 		session.Save()
 		ctx.HTML(http.StatusOK, "forgotpassword.html", gin.H{
 			"account": false,
 		})
 
 	} else {
+
 		id := session.Get("reset_id")
 		newpass := ctx.PostForm("newpassword")
 		confirmpass := ctx.PostForm("confirmpassword")
@@ -237,7 +251,6 @@ func HandleForgotPassword(ctx *gin.Context) {
 			session.Set("message", "Password must contain uppercase, lowercase, number, and special character")
 			session.Save()
 			ctx.Redirect(http.StatusSeeOther, "/forgotpassword")
-
 			return
 		}
 
@@ -250,12 +263,17 @@ func HandleForgotPassword(ctx *gin.Context) {
 
 		hashed_password, err := bcrypt.GenerateFromPassword([]byte(newpass), bcrypt.DefaultCost)
 		if err != nil {
+			slog.Error("Failed to hash new password")
 			ctx.String(http.StatusInternalServerError, "Error hashing password")
 			return
 		}
 
-		_, err = config.DB.Exec("UPDATE users SET hashed_password = $1 WHERE id=$2", hashed_password, id)
+		err = config.DB.Model(&models.User{}).
+			Where("id = ?", id).
+			Update("password", string(hashed_password)).Error
+
 		if err != nil {
+			slog.Error("Failed to update password", "error", err)
 			ctx.String(http.StatusInternalServerError, "Database error")
 			return
 		}
@@ -264,6 +282,7 @@ func HandleForgotPassword(ctx *gin.Context) {
 		session.Set("message", "Password updated successfully")
 		session.Save()
 
+		slog.Info("Password reset successful", "user_id", id)
 		ctx.Redirect(http.StatusSeeOther, "/login")
 
 	}

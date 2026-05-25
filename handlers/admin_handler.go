@@ -1,8 +1,9 @@
 package handlers
 
 import (
-	"database/sql"
-	"fmt"
+
+	"errors"
+	"log/slog"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -13,6 +14,7 @@ import (
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 	// "golang.org/x/text/message"
 )
 
@@ -25,41 +27,26 @@ func GetAllUser(ctx *gin.Context) {
 
 	search := ctx.Query("search")
 
-	var row *sql.Rows
+	var user []models.User
 	var err error
+
 	if search != "" {
-		query := `
-			SELECT id,name,email,role 
-			FROM users
-			WHERE name ILIKE $1 OR email ILIKE $1
-		`
-		row, err = config.DB.Query(query, "%"+search+"%")
+		err = config.DB.Where("name ILike ?", "%"+search+"%").
+			Or("email ILIKE ?", "%"+search+"%").
+			Find(&user).Error
+
 	} else {
-		row, err = config.DB.Query("SELECT id,name,email,role FROM users")
+		err = config.DB.Find(&user).Error
 	}
 
 	if err != nil {
+		slog.Error("Failed to fetch users", "error", err, "search", search)
 		ctx.String(http.StatusInternalServerError, "Error feching users")
 		return
 	}
 
-	defer row.Close()
-
-	var users []models.User
-
-	for row.Next() {
-		var user models.User
-
-		err := row.Scan(&user.ID, &user.Name, &user.Email, &user.Role)
-		if err != nil {
-			fmt.Println("Scan error:", err)
-			continue
-		}
-		users = append(users, user)
-	}
-
 	ctx.HTML(http.StatusOK, "admin_users.html", gin.H{
-		"users":   users,
+		"users":   user,
 		"message": msg,
 	})
 }
@@ -73,21 +60,27 @@ func EditUserPage(ctx *gin.Context) {
 	session.Save()
 
 	idparam := ctx.Param("id")
-	// fmt.Println("ID from URL:", idparam)
+
 	id, err := strconv.Atoi(idparam)
 
 	if err != nil {
+		slog.Warn("Invalid user ID format", "id_param", idparam)
 		ctx.String(http.StatusBadRequest, "Invalid user ID")
 		return
 	}
 	var user models.User
 
-	err = config.DB.QueryRow(
-		"SELECT id,name,email,role FROM users WHERE id=$1", id,
-	).Scan(&user.ID, &user.Name, &user.Email, &user.Role)
+	err = config.DB.Select("id,name,email,role").
+		Where("id = ?", id).First(&user).Error
 
 	if err != nil {
-		ctx.String(http.StatusInternalServerError, "User not found")
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			slog.Warn("User not found", "user_id", id)
+			ctx.String(http.StatusNotFound, "User not found")
+		} else {
+			slog.Error("Database error while fetching user", "user_id", id, "error", err)
+			ctx.String(http.StatusInternalServerError, "Internal server error")
+		}
 		return
 	}
 
@@ -103,6 +96,7 @@ func UpdateUserPage(ctx *gin.Context) {
 	id, err := strconv.Atoi(idParam)
 
 	if err != nil {
+		slog.Warn("Invalid user ID format in update", "id_param", idParam)
 		ctx.String(http.StatusBadRequest, "Invalid user ID")
 		return
 	}
@@ -143,16 +137,23 @@ func UpdateUserPage(ctx *gin.Context) {
 		return
 	}
 
-	_, err = config.DB.Exec(
-		"UPDATE users SET name=$1, email=$2, role=$3 WHERE id=$4",
-		name, email, role, id,
-	)
+	user := map[string]interface{}{
+		"name":  name,
+		"email": email,
+		"role":  role,
+	}
+
+	err = config.DB.Model(&models.User{}).
+		Where("id = ?", id).
+		Updates(user).Error
 
 	if err != nil {
+		slog.Error("Failed to update user", "user_id", id, "error", err)
 		ctx.String(http.StatusInternalServerError, "Update failed")
 		return
 	}
 
+	slog.Info("User updated successfully", "user_id", id, "email", email)
 	session.Set("message", "User updated successfully")
 	session.Save()
 
@@ -197,7 +198,7 @@ func EditUserPasswordPage(ctx *gin.Context) {
 	}
 
 	if newpassword != confirmpassword {
-		session.Set("message", "Password do not match")
+		session.Set("message", "Passwords do not match")
 		session.Save()
 		ctx.Redirect(http.StatusSeeOther, "/admin/users/updatepassword/"+id)
 		return
@@ -206,24 +207,26 @@ func EditUserPasswordPage(ctx *gin.Context) {
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newpassword), bcrypt.DefaultCost)
 
 	if err != nil {
+		slog.Error("Failed to hash password", "error", err)
 		session.Set("message", "Failed to process password")
 		session.Save()
 		ctx.Redirect(http.StatusSeeOther, "/admin/users/updatepassword/"+id)
 		return
 	}
 
-	_, err = config.DB.Exec(
-		"UPDATE users SET hashed_password=$1 WHERE id=$2",
-		hashedPassword, id,
-	)
+	err = config.DB.Model(&models.User{}).
+		Where("id = ?", id).
+		Update("password", string(hashedPassword)).Error
 
 	if err != nil {
+		slog.Error("Failed to update user password", "user_id", id, "error", err)
 		session.Set("message", "Failed to update password")
 		session.Save()
 		ctx.Redirect(http.StatusSeeOther, "/admin/users/updatepassword/"+id)
 		return
 	}
 
+	slog.Info("Admin updated user password successfully", "user_id", id)
 	session.Set("message", "Password updated successfully")
 	session.Save()
 
@@ -231,13 +234,24 @@ func EditUserPasswordPage(ctx *gin.Context) {
 }
 
 func DeleteUser(ctx *gin.Context) {
-	id := ctx.Param("id")
+	idParam := ctx.Param("id")
 
-	_, err := config.DB.Exec("DELETE FROM users WHERE id=$1", id)
+	id, err := strconv.Atoi(idParam)
 	if err != nil {
+		slog.Warn("Invalid user ID format for delete", "id_param", idParam)
+		ctx.String(http.StatusBadRequest, "Invalid user ID")
+		return
+	}
+
+	err = config.DB.Unscoped().Delete(&models.User{}, id).Error
+
+	if err != nil {
+		slog.Error("Failed to delete user", "user_id", id, "error", err)
 		ctx.String(http.StatusInternalServerError, "Delete failed")
 		return
 	}
+
+	slog.Info("User deleted successfully", "user_id", id)
 
 	session := sessions.Default(ctx)
 	session.Set("message", "User deleted successfully")
@@ -351,9 +365,7 @@ func AddNewUser(ctx *gin.Context) {
 	hashedpassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 
 	if err != nil {
-		// ctx.HTML(http.StatusInternalServerError, "signup.html", gin.H{
-		// 	"error": "Failed to hash password",
-		// })
+		slog.Error("Failed to hash password during user creation")
 		session.Set("message", "Failed to hash password")
 		for k, v := range formData {
 			session.Set(k, v)
@@ -363,13 +375,15 @@ func AddNewUser(ctx *gin.Context) {
 		return
 	}
 
-	query := "INSERT INTO users(name,email,role, hashed_password) VALUES($1,$2,$3,$4)"
-	_, err = config.DB.Exec(query, name, email, role, hashedpassword)
+	user := models.User{
+		Name:     name,
+		Email:    email,
+		Password: string(hashedpassword),
+		Role:     role,
+	}
 
-	if err != nil {
-		// ctx.HTML(http.StatusBadRequest, "signup.html", gin.H{
-		// 	"error": "Email already exists or invalid data",
-		// })
+	if err := config.DB.Create(&user).Error; err != nil {
+		slog.Warn("Failed to create new user - possible duplicate email", "email", email, "error", err)
 		session.Set("message", "Email already exists or invalid data")
 		for k, v := range formData {
 			session.Set(k, v)
@@ -378,6 +392,8 @@ func AddNewUser(ctx *gin.Context) {
 		ctx.Redirect(http.StatusSeeOther, "/admin/newuser")
 		return
 	}
+
+	slog.Info("New user created successfully by admin", "user_id", user.ID, "email", email, "role", role)
 
 	session.Set("message", "User created successfully")
 	session.Save()

@@ -1,34 +1,76 @@
 package config
 
 import (
-	"database/sql"
 	"fmt"
-	"log"
-
-	_ "github.com/lib/pq"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
+	"log/slog"
+	"os"
+	"user-app/models"
+	"time"
 )
 
-var DB *sql.DB
+var DB *gorm.DB
 
-//Connection to Postgres using database/sql
+func ConnectDatabase() {
 
-func ConnectDatabase(){
-
-	psqlInfo:="host=localhost port=5432 user=postgres password=root dbname=user_app sslmode=disable"
+	dsn := getDSN()
 
 	var err error
 
-	DB,err = sql.Open("postgres", psqlInfo)
+	gormLogger := logger.New(
+		slog.NewLogLogger(slog.Default().Handler(), slog.LevelInfo),
+		logger.Config{
+			SlowThreshold:             time.Second,
+			LogLevel:                  logger.Info,
+			IgnoreRecordNotFoundError: true,
+			Colorful:                  true,
+			
+		},
+	)
+	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{
+		Logger: gormLogger,
+	})
 
-	if err != nil{
-		log.Fatal("Failed to open database connection: ",err)
+	if err != nil {
+		slog.Error("Failed to connect to database", "error", err)
+		os.Exit(1)
 	}
 
-	err = DB.Ping()
+	sqlDB, err := DB.DB()
 
-	if err != nil{
-		log.Fatal("Failed to ping database: ",err)
+	if err != nil {
+		slog.Error("Failed to get sql.DB", "error", err)
+		os.Exit(1)
 	}
 
-	fmt.Println("connected to Postgres")
+	sqlDB.SetMaxIdleConns(10)
+	sqlDB.SetMaxOpenConns(100)
+	sqlDB.SetConnMaxLifetime(30 * 60)
+
+	slog.Info("Successfully connected to PostgreSQL")
+}
+
+func getDSN() string {
+	return fmt.Sprintf(
+		"host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+		os.Getenv("DB_HOST"),
+		os.Getenv("DB_PORT"),
+		os.Getenv("DB_USER"),
+		os.Getenv("DB_PASSWORD"),
+		os.Getenv("DB_NAME"),
+	)
+}
+
+func AutoMigrate() {
+	err := DB.AutoMigrate(
+		&models.User{},
+	)
+
+	if err != nil {
+		slog.Error("Auto migration failed", "error", err)
+		os.Exit(1)
+	}
+	slog.Info("Database migration completed successfully")
 }

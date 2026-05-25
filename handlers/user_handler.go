@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"log/slog"
 	"net/http"
 	"regexp"
 	"user-app/config"
@@ -21,11 +22,9 @@ func ShowProfilePage(ctx *gin.Context) {
 
 	var user models.User
 
-	query := `SELECT name,email from users WHERE id = $1`
-
-	err := config.DB.QueryRow(query, id).Scan(&user.Name, &user.Email)
-
+	err := config.DB.Select("id,name,email").First(&user, id).Error
 	if err != nil {
+		slog.Error("Failed to fetch user profile", "user_id", id, "error", err)
 		ctx.String(http.StatusInternalServerError, "User not found")
 		return
 	}
@@ -71,14 +70,18 @@ func UpdateUserProfile(ctx *gin.Context) {
 		return
 	}
 
-	_, err := config.DB.Exec(
-		"UPDATE users SET name=$1,email=$2 WHERE id=$3", name, email, id,
-	)
-
-	if err != nil {
+	if err := config.DB.Model(&models.User{}).
+		Where("id = ?", id).
+		Updates(map[string]interface{}{
+			"name":  name,
+			"email": email,
+		}).Error; err != nil {
+		slog.Error("Failed to update user profile", "user_id", id, "error", err)
 		ctx.String(http.StatusInternalServerError, "Update Fail")
 		return
 	}
+
+	slog.Info("User profile updated successfully", "user_id", id)
 
 	session.Set("message", "Profile updated successfully")
 	session.Set("name", name)
@@ -116,11 +119,9 @@ func ChangePassword(ctx *gin.Context) {
 
 	//Pass validation
 	if !utils.IsStrongPassword(newPassword) {
-
 		session.Set("error", "Password must contain uppercase, lowercase, number, and special character")
 		session.Save()
 		ctx.Redirect(http.StatusSeeOther, "/password")
-
 		return
 	}
 
@@ -131,21 +132,21 @@ func ChangePassword(ctx *gin.Context) {
 		return
 	}
 
-	var hashedpassword string
+	var user models.User
 
-	err := config.DB.QueryRow(
-		"SELECT hashed_password FROM users WHERE id=$1", id,
-	).Scan(&hashedpassword)
+	err := config.DB.Select("password").First(&user, id).Error
 
 	if err != nil {
+		slog.Error("User not found during password change", "user_id", id, "error", err)
 		session.Set("error", "User not found")
 		session.Save()
 		ctx.Redirect(http.StatusSeeOther, "/password")
 		return
 	}
 
-	err = bcrypt.CompareHashAndPassword([]byte(hashedpassword), []byte(oldPassword))
+	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(oldPassword))
 	if err != nil {
+		slog.Warn("Incorrect current password attempt", "user_id", id)
 		session.Set("error", "Current password is incorrect")
 		session.Save()
 		ctx.Redirect(http.StatusSeeOther, "/password")
@@ -154,25 +155,26 @@ func ChangePassword(ctx *gin.Context) {
 
 	newHashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
 	if err != nil {
+		slog.Error("Failed to hash new password", "error", err)
 		session.Set("error", "Failed to process password")
 		session.Save()
 		ctx.Redirect(http.StatusSeeOther, "/password")
 		return
 	}
 
-	_, err = config.DB.Exec(
-		"UPDATE users SET hashed_password=$1 WHERE id=$2",
-		newHashedPassword,
-		id,
-	)
+	err = config.DB.Model(&models.User{}).
+		Where("id = ?", id).
+		Update("password", string(newHashedPassword)).Error
 
 	if err != nil {
+		slog.Error("Failed to update password in database", "user_id", id, "error", err)
 		session.Set("error", "Failed to update password")
 		session.Save()
 		ctx.Redirect(http.StatusSeeOther, "/password")
 		return
 	}
 
+	slog.Info("User changed password successfully", "user_id", id)
 	session.Set("message", "Password updated successfully")
 	session.Save()
 
