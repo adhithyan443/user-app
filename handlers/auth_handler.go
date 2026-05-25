@@ -13,6 +13,17 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+func Login(c *gin.Context) {
+	var input models.LoginInput
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+}
+
 func ShowLoginPage(ctx *gin.Context) {
 
 	session := sessions.Default(ctx)
@@ -63,19 +74,44 @@ func HandleLogin(ctx *gin.Context) {
 		return
 	}
 
+	token, err := utils.GenerateToken(
+		user.ID,
+		user.Email,
+		user.Role,
+	)
+
+	if err != nil {
+
+		slog.Error("Failed to generate JWT token",
+			"user_id", user.ID,
+			"error", err,
+		)
+
+		ctx.HTML(http.StatusInternalServerError, "login.html", gin.H{
+			"error": "Failed to login",
+		})
+
+		return
+	}
+
 	//session setup
 	session := sessions.Default(ctx)
 	session.Set("user_id", user.ID)
 	session.Set("email", user.Email)
 	session.Set("name", user.Name)
 	session.Set("role", user.Role)
-	session.Save()
+	session.Set("token", token)
+	
 
 	if err := session.Save(); err != nil {
 		slog.Error("Failed to save session", "error", err)
 	}
 
 	slog.Info("User logged in successfully", "user_id", user.ID, "role", user.Role)
+	slog.Info("JWT token generated",
+		"user_id", user.ID,
+		"token", token,
+	)
 
 	//Redirect based on role
 	if user.Role == "admin" {
@@ -286,4 +322,24 @@ func HandleForgotPassword(ctx *gin.Context) {
 		ctx.Redirect(http.StatusSeeOther, "/login")
 
 	}
+}
+
+func JWTProfile(ctx *gin.Context) {
+
+	userID, _ := ctx.Get("user_id")
+	email, _ := ctx.Get("email")
+	role, _ := ctx.Get("role")
+
+	slog.Info("JWT protected route accessed",
+		"user_id", userID,
+		"email", email,
+		"role", role,
+	)
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"message": "JWT authentication successful",
+		"user_id": userID,
+		"email": email,
+		"role": role,
+	})
 }

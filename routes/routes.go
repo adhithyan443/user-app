@@ -41,11 +41,11 @@ func SetupRoutes(r *gin.Engine) {
 		admin := protected.Group("/admin")
 		admin.Use(middleware.AdminRequired())
 		{
-			admin.GET("", handlers.ShowAdminPage)                           //dashboard
-			admin.GET("/users", handlers.GetAllUser)                        //Read all users
-			admin.GET("/users/edit/:id", handlers.EditUserPage)             //Edit user
-			admin.POST("/users/update/:id", handlers.UpdateUserPage)        //Update
-			admin.GET("/users/delete/:id", handlers.DeleteUser)             //Delete user
+			admin.GET("", handlers.ShowAdminPage)                                 //dashboard
+			admin.GET("/users", handlers.GetAllUser)                              //Read all users
+			admin.GET("/users/edit/:id", handlers.EditUserPage)                   //Edit user
+			admin.POST("/users/update/:id", handlers.UpdateUserPage)              //Update
+			admin.GET("/users/delete/:id", handlers.DeleteUser)                   //Delete user
 			admin.GET("/users/updatepassword/:id", handlers.ShowUserPasswordPage) //update password
 			admin.POST("/users/updatepassword/:id", handlers.EditUserPasswordPage)
 
@@ -54,5 +54,11 @@ func SetupRoutes(r *gin.Engine) {
 
 		}
 
+	}
+
+	api := r.Group("/api")
+	api.Use(middleware.JWTAuth())
+	{
+		api.GET("/profile", handlers.JWTProfile)
 	}
 }
