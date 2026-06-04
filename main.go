@@ -47,6 +47,8 @@ func main() {
 	adminUsecase := usecase.NewAdminUsecase(userRepo)
 	adminHandler := handler.NewAdminHandler(adminUsecase)
 
+	pageHandler := handler.NewPageHandler()
+
 	config.AutoMigrate(db)
 
 	r := gin.Default()
@@ -76,7 +78,7 @@ func main() {
 	r.Static("/static", "./templates/static")
 
 	//Setup all routes
-	routes.SetupRoutes(r, authHandler, userHandler, adminHandler)
+	routes.SetupRoutes(r, authHandler, userHandler, adminHandler, pageHandler)
 
 	slog.Info("Server is running on http://localhost:8080")
 

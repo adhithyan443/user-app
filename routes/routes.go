@@ -8,17 +8,17 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func SetupRoutes(r *gin.Engine, authHandler *handler.AuthHandler,userHandler *handler.UserHandler,adminHandler *handler.AdminHandler) {
+func SetupRoutes(r *gin.Engine, authHandler *handler.AuthHandler,userHandler *handler.UserHandler,adminHandler *handler.AdminHandler,  pageHandler *handler.PageHandler) {
 
 	r.GET("/", func(ctx *gin.Context) {
 		ctx.Redirect(303, "/login")
 	})
 
 	//Login Routes
-	r.GET("/login", handlers.ShowLoginPage)
+	r.GET("/login", pageHandler.ShowLoginPage)
 	r.POST("/login", authHandler.HandleLogin)
 	//Signup
-	r.GET("/signup", handlers.ShowSignupPage)
+	r.GET("/signup", pageHandler.ShowSignupPage)
 	r.POST("/signup", authHandler.HandleSignup)
 
 	r.GET("/forgotpassword", handlers.ShowForgotPasswordPage)
@@ -35,7 +35,7 @@ func SetupRoutes(r *gin.Engine, authHandler *handler.AuthHandler,userHandler *ha
 		protected.GET("/profile", 	userHandler.ShowProfilePage)
 		protected.POST("/profile/update", userHandler.UpdateUserProfile)
 
-		protected.GET("/password", handlers.ShowChangePasswordPage)
+		protected.GET("/password", pageHandler.ShowChangePasswordPage)
 		protected.POST("/password", userHandler.ChangePassword)
 
 		//admin route
