@@ -11,13 +11,11 @@ import (
 	models "user-app/internal/domain"
 )
 
-var DB *gorm.DB
+
 
 func ConnectDatabase() *gorm.DB {
 
 	dsn := getDSN()
-
-	var err error
 
 	gormLogger := logger.New(
 		slog.NewLogLogger(slog.Default().Handler(), slog.LevelInfo),
@@ -28,7 +26,7 @@ func ConnectDatabase() *gorm.DB {
 			Colorful:                  true,
 		},
 	)
-	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
 		Logger: gormLogger,
 	})
 
@@ -37,7 +35,7 @@ func ConnectDatabase() *gorm.DB {
 		os.Exit(1)
 	}
 
-	sqlDB, err := DB.DB()
+	sqlDB, err := db.DB()
 
 	if err != nil {
 		slog.Error("Failed to get sql.DB", "error", err)
@@ -50,7 +48,7 @@ func ConnectDatabase() *gorm.DB {
 
 	slog.Info("Successfully connected to PostgreSQL")
 
-	return DB
+	return db
 }
 
 
