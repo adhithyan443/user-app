@@ -111,3 +111,106 @@ func (h *AuthHandler) HandleLogin(ctx *gin.Context) {
 
 	ctx.Redirect(http.StatusSeeOther, "/home")
 }
+
+func (h *AuthHandler) HandleForgotPassword(
+	ctx *gin.Context,
+) {
+
+	session := sessions.Default(ctx)
+
+	email := ctx.PostForm("email")
+
+	if email != "" {
+
+		user, err := h.authUsecase.FindUserByEmail(
+			email,
+		)
+
+		if err != nil {
+
+			session.Set(
+				"message",
+				"User does not exist",
+			)
+
+			session.Save()
+
+			ctx.Redirect(
+				http.StatusSeeOther,
+				"/forgotpassword",
+			)
+
+			return
+		}
+
+		session.Set(
+			"reset_id",
+			user.ID,
+		)
+
+		session.Save()
+
+		ctx.HTML(
+			http.StatusOK,
+			"forgotpassword.html",
+			gin.H{
+				"account": false,
+			},
+		)
+
+		return
+	}
+
+	id := session.Get("reset_id")
+
+	userID, ok := id.(uint)
+
+	if !ok {
+
+		ctx.Redirect(
+			http.StatusSeeOther,
+			"/forgotpassword",
+		)
+
+		return
+	}
+
+	req := usecase.ResetPasswordRequest{
+		UserID:          userID,
+		NewPassword:     ctx.PostForm("newpassword"),
+		ConfirmPassword: ctx.PostForm("confirmpassword"),
+	}
+
+	err := h.authUsecase.ResetPassword(req)
+
+	if err != nil {
+
+		session.Set(
+			"message",
+			err.Error(),
+		)
+
+		session.Save()
+
+		ctx.Redirect(
+			http.StatusSeeOther,
+			"/forgotpassword",
+		)
+
+		return
+	}
+
+	session.Delete("reset_id")
+
+	session.Set(
+		"message",
+		"Password updated successfully",
+	)
+
+	session.Save()
+
+	ctx.Redirect(
+		http.StatusSeeOther,
+		"/login",
+	)
+}

@@ -87,3 +87,25 @@ func (h *PageHandler) ShowChangePasswordPage(
 		},
 	)
 }
+
+func (h *PageHandler) ShowForgotPasswordPage(
+	ctx *gin.Context,
+) {
+
+	session := sessions.Default(ctx)
+
+	msg := session.Get("message")
+
+	session.Delete("message")
+
+	session.Save()
+
+	ctx.HTML(
+		http.StatusOK,
+		"forgotpassword.html",
+		gin.H{
+			"account": true,
+			"message": msg,
+		},
+	)
+}

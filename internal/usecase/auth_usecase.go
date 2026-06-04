@@ -39,6 +39,12 @@ type LoginResponse struct {
 	Token string
 }
 
+type ResetPasswordRequest struct {
+	UserID          uint
+	NewPassword     string
+	ConfirmPassword string
+}
+
 func (u *AuthUsecase) Signup(req SignupRequest) error {
 
 	if req.Name == "" || req.Email == "" || req.Password == "" {
@@ -125,4 +131,47 @@ func (u *AuthUsecase) Login(
 		User:  user,
 		Token: token,
 	}, nil
+}
+
+func (u *AuthUsecase) FindUserByEmail(
+	email string,
+) (*domain.User, error) {
+
+	if email == "" {
+		return nil, errors.New("email is required")
+	}
+
+	return u.userRepo.FindByEmail(email)
+}
+
+
+func (u *AuthUsecase) ResetPassword(
+	req ResetPasswordRequest,
+) error {
+
+	if !utils.IsStrongPassword(req.NewPassword) {
+		return errors.New(
+			"password must contain uppercase, lowercase, number, and special character",
+		)
+	}
+
+	if req.NewPassword != req.ConfirmPassword {
+		return errors.New(
+			"passwords do not match",
+		)
+	}
+
+	hashedPassword, err := bcrypt.GenerateFromPassword(
+		[]byte(req.NewPassword),
+		bcrypt.DefaultCost,
+	)
+
+	if err != nil {
+		return err
+	}
+
+	return u.userRepo.UpdatePassword(
+		req.UserID,
+		string(hashedPassword),
+	)
 }

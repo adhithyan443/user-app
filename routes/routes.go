@@ -21,8 +21,8 @@ func SetupRoutes(r *gin.Engine, authHandler *handler.AuthHandler,userHandler *ha
 	r.GET("/signup", pageHandler.ShowSignupPage)
 	r.POST("/signup", authHandler.HandleSignup)
 
-	r.GET("/forgotpassword", handlers.ShowForgotPasswordPage)
-	r.POST("/forgotpassword", handlers.HandleForgotPassword)
+	r.GET("/forgotpassword", pageHandler.ShowForgotPasswordPage)
+	r.POST("/forgotpassword", authHandler.HandleForgotPassword)
 
 	//middleware
 	protected := r.Group("/")
