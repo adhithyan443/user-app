@@ -7,17 +7,15 @@ import (
 	"gorm.io/gorm/logger"
 	"log/slog"
 	"os"
-	"user-app/models"
 	"time"
+	models "user-app/internal/domain"
 )
 
-var DB *gorm.DB
 
-func ConnectDatabase() {
+
+func ConnectDatabase() *gorm.DB {
 
 	dsn := getDSN()
-
-	var err error
 
 	gormLogger := logger.New(
 		slog.NewLogLogger(slog.Default().Handler(), slog.LevelInfo),
@@ -26,10 +24,9 @@ func ConnectDatabase() {
 			LogLevel:                  logger.Info,
 			IgnoreRecordNotFoundError: true,
 			Colorful:                  true,
-			
 		},
 	)
-	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
 		Logger: gormLogger,
 	})
 
@@ -38,7 +35,7 @@ func ConnectDatabase() {
 		os.Exit(1)
 	}
 
-	sqlDB, err := DB.DB()
+	sqlDB, err := db.DB()
 
 	if err != nil {
 		slog.Error("Failed to get sql.DB", "error", err)
@@ -50,7 +47,11 @@ func ConnectDatabase() {
 	sqlDB.SetConnMaxLifetime(30 * 60)
 
 	slog.Info("Successfully connected to PostgreSQL")
+
+	return db
 }
+
+
 
 func getDSN() string {
 	return fmt.Sprintf(
@@ -63,8 +64,9 @@ func getDSN() string {
 	)
 }
 
-func AutoMigrate() {
-	err := DB.AutoMigrate(
+func AutoMigrate(db *gorm.DB) {
+
+	err := db.AutoMigrate(
 		&models.User{},
 	)
 

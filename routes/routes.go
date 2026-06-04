@@ -1,56 +1,59 @@
 package routes
 
 import (
-	"user-app/handlers"
+	
+	"user-app/internal/handler"
 	"user-app/middleware"
 
 	"github.com/gin-gonic/gin"
 )
 
-func SetupRoutes(r *gin.Engine) {
+func SetupRoutes(r *gin.Engine, authHandler *handler.AuthHandler,userHandler *handler.UserHandler,adminHandler *handler.AdminHandler,  pageHandler *handler.PageHandler) {
 
 	r.GET("/", func(ctx *gin.Context) {
 		ctx.Redirect(303, "/login")
 	})
 
 	//Login Routes
-	r.GET("/login", handlers.ShowLoginPage)
-	r.POST("/login", handlers.HandleLogin)
+	r.GET("/login", pageHandler.ShowLoginPage)
+	r.POST("/login", authHandler.HandleLogin)
 	//Signup
-	r.GET("/signup", handlers.ShowSignupPage)
-	r.POST("/signup", handlers.HandleSignup)
+	r.GET("/signup", pageHandler.ShowSignupPage)
+	r.POST("/signup", authHandler.HandleSignup)
 
-	r.GET("/forgotpassword", handlers.ShowForgotPasswordPage)
-	r.POST("/forgotpassword", handlers.HandleForgotPassword)
+	r.GET("/forgotpassword", pageHandler.ShowForgotPasswordPage)
+	r.POST("/forgotpassword", authHandler.HandleForgotPassword)
 
 	//middleware
 	protected := r.Group("/")
 	protected.Use(middleware.AuthRequired(), middleware.NoCache())
 	{
-		protected.GET("/home", handlers.ShowHomePage)
-		protected.GET("/logout", handlers.HandleLogout)
+		protected.GET("/home", pageHandler.ShowHomePage)
+		protected.GET("/logout", authHandler.Logout)
 
 		//User route
-		protected.GET("/profile", handlers.ShowProfilePage)
-		protected.POST("/profile/update", handlers.UpdateUserProfile)
+		protected.GET("/profile", 	userHandler.ShowProfilePage)
+		protected.POST("/profile/update", userHandler.UpdateUserProfile)
 
-		protected.GET("/password", handlers.ShowChangePasswordPage)
-		protected.POST("/password", handlers.ChangePassword)
+		protected.GET("/password", pageHandler.ShowChangePasswordPage)
+		protected.POST("/password", userHandler.ChangePassword)
 
 		//admin route
 		admin := protected.Group("/admin")
 		admin.Use(middleware.AdminRequired())
 		{
-			admin.GET("", handlers.ShowAdminPage)                                 //dashboard
-			admin.GET("/users", handlers.GetAllUser)                              //Read all users
-			admin.GET("/users/edit/:id", handlers.EditUserPage)                   //Edit user
-			admin.POST("/users/update/:id", handlers.UpdateUserPage)              //Update
-			admin.GET("/users/delete/:id", handlers.DeleteUser)                   //Delete user
-			admin.GET("/users/updatepassword/:id", handlers.ShowUserPasswordPage) //update password
-			admin.POST("/users/updatepassword/:id", handlers.EditUserPasswordPage)
+			admin.GET("", adminHandler.ShowAdminPage)                                 //dashboard
 
-			admin.GET("/newuser", handlers.NewUserPage)
-			admin.POST("/newuser", handlers.AddNewUser)
+			admin.GET("/users",  adminHandler.GetAllUsers)                              //Read all users
+			admin.GET("/users/edit/:id", adminHandler.EditUserPage)                   //Edit user
+			admin.POST("/users/update/:id", adminHandler.UpdateUserPage)              //Update
+			admin.GET("/users/delete/:id", adminHandler.DeleteUser)                   //Delete user
+
+			admin.GET("/users/updatepassword/:id", adminHandler.ShowUserPasswordPage) //update password
+			admin.POST("/users/updatepassword/:id", adminHandler.EditUserPasswordPage)
+
+			admin.GET("/newuser", adminHandler.NewUserPage)
+			admin.POST("/newuser", adminHandler.AddNewUser)
 
 		}
 
@@ -59,6 +62,6 @@ func SetupRoutes(r *gin.Engine) {
 	api := r.Group("/api")
 	api.Use(middleware.JWTAuth())
 	{
-		api.GET("/profile", handlers.JWTProfile)
+		api.GET("/profile", authHandler.JWTProfile)
 	}
 }
