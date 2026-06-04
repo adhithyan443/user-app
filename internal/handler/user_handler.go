@@ -129,3 +129,60 @@ func (h *UserHandler) UpdateUserProfile(
 		"/profile",
 	)
 }
+
+func (h *UserHandler) ChangePassword(
+	ctx *gin.Context,
+) {
+
+	session := sessions.Default(ctx)
+
+	id := session.Get("user_id")
+
+	userID, ok := id.(uint)
+
+	if !ok {
+		ctx.Redirect(
+			http.StatusSeeOther,
+			"/login",
+		)
+		return
+	}
+
+	req := usecase.ChangePasswordRequest{
+		ID:              userID,
+		OldPassword:     ctx.PostForm("oldpassword"),
+		NewPassword:     ctx.PostForm("newpassword"),
+		ConfirmPassword: ctx.PostForm("confirmpassword"),
+	}
+
+	err := h.userUsecase.ChangePassword(req)
+
+	if err != nil {
+
+		session.Set(
+			"error",
+			err.Error(),
+		)
+
+		session.Save()
+
+		ctx.Redirect(
+			http.StatusSeeOther,
+			"/password",
+		)
+
+		return
+	}
+
+	session.Set(
+		"message",
+		"Password updated successfully",
+	)
+
+	session.Save()
+
+	ctx.Redirect(
+		http.StatusSeeOther,
+		"/password",
+	)
+}

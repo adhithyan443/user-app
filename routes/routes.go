@@ -36,7 +36,7 @@ func SetupRoutes(r *gin.Engine, authHandler *handler.AuthHandler,userHandler *ha
 		protected.POST("/profile/update", userHandler.UpdateUserProfile)
 
 		protected.GET("/password", handlers.ShowChangePasswordPage)
-		protected.POST("/password", handlers.ChangePassword)
+		protected.POST("/password", userHandler.ChangePassword)
 
 		//admin route
 		admin := protected.Group("/admin")
