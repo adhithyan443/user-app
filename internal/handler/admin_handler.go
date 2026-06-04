@@ -67,7 +67,7 @@ func (h *AdminHandler) DeleteUser(
 
 	if err != nil {
 
-		slog.Warn( 
+		slog.Warn(
 			"Invalid user ID format",
 			"id_param", idParam,
 		)
@@ -113,4 +113,66 @@ func (h *AdminHandler) DeleteUser(
 		http.StatusFound,
 		"/admin/users",
 	)
+}
+
+func (h *AdminHandler) EditUserPage(ctx *gin.Context) {
+	session := sessions.Default(ctx)
+	msg := session.Get("message")
+	session.Delete("message")
+	session.Save()
+
+	idParam := ctx.Param("id")
+	id, err := strconv.Atoi(idParam)
+	if err != nil {
+		slog.Warn("Invalid user ID format", "id_param", idParam)
+		ctx.String(http.StatusBadRequest, "Invalid user ID")
+		return
+	}
+
+	user, err := h.adminUsecase.GetUserByID(uint(id))
+	if err != nil {
+		slog.Error("Failed to fetch user for edit", "user_id", id, "error", err)
+		ctx.String(http.StatusNotFound, "User not found")
+		return
+	}
+
+	ctx.HTML(http.StatusOK, "edit_user.html", gin.H{
+		"user":    user,
+		"message": msg,
+	})
+}
+
+// UpdateUserPage - POST /admin/users/update/:id
+func (h *AdminHandler) UpdateUserPage(ctx *gin.Context) {
+	idParam := ctx.Param("id")
+	id, err := strconv.Atoi(idParam)
+	if err != nil {
+		slog.Warn("Invalid user ID format in update", "id_param", idParam)
+		ctx.String(http.StatusBadRequest, "Invalid user ID")
+		return
+	}
+
+	req := usecase.UpdateUserRequest{
+		ID:    uint(id),
+		Name:  ctx.PostForm("name"),
+		Email: ctx.PostForm("email"),
+		Role:  ctx.PostForm("role"),
+	}
+
+	session := sessions.Default(ctx)
+
+	err = h.adminUsecase.UpdateUser(req)
+	if err != nil {
+		slog.Warn("Validation or update failed", "user_id", id, "error", err)
+		session.Set("message", err.Error())
+		session.Save()
+		ctx.Redirect(http.StatusSeeOther, "/admin/users/edit/"+idParam)
+		return
+	}
+
+	slog.Info("User updated successfully via usecase", "user_id", id)
+	session.Set("message", "User updated successfully")
+	session.Save()
+
+	ctx.Redirect(http.StatusFound, "/admin/users")
 }

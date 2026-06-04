@@ -1,7 +1,7 @@
 package handlers
 
 import (
-	"errors"
+
 	"log/slog"
 	"net/http"
 	"regexp"
@@ -13,7 +13,7 @@ import (
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
-	"gorm.io/gorm"
+
 	// "golang.org/x/text/message"
 )
 
@@ -50,116 +50,7 @@ func GetAllUser(ctx *gin.Context) {
 	})
 }
 
-func EditUserPage(ctx *gin.Context) {
 
-	session := sessions.Default(ctx)
-
-	msg := session.Get("message")
-	session.Delete("message")
-	session.Save()
-
-	idparam := ctx.Param("id")
-
-	id, err := strconv.Atoi(idparam)
-
-	if err != nil {
-		slog.Warn("Invalid user ID format", "id_param", idparam)
-		ctx.String(http.StatusBadRequest, "Invalid user ID")
-		return
-	}
-	var user models.User
-
-	err = config.DB.Select("id,name,email,role").
-		Where("id = ?", id).First(&user).Error
-
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			slog.Warn("User not found", "user_id", id)
-			ctx.String(http.StatusNotFound, "User not found")
-		} else {
-			slog.Error("Database error while fetching user", "user_id", id, "error", err)
-			ctx.String(http.StatusInternalServerError, "Internal server error")
-		}
-		return
-	}
-
-	ctx.HTML(http.StatusOK, "edit_user.html", gin.H{
-		"user":    user,
-		"message": msg,
-	})
-}
-
-func UpdateUserPage(ctx *gin.Context) {
-
-	idParam := ctx.Param("id")
-	id, err := strconv.Atoi(idParam)
-
-	if err != nil {
-		slog.Warn("Invalid user ID format in update", "id_param", idParam)
-		ctx.String(http.StatusBadRequest, "Invalid user ID")
-		return
-	}
-
-	name := ctx.PostForm("name")
-	email := ctx.PostForm("email")
-	role := ctx.PostForm("role")
-	session := sessions.Default(ctx)
-
-	if name == "" || email == "" || role == "" {
-		session.Set("message", "All fields are required")
-		session.Save()
-		ctx.Redirect(http.StatusSeeOther, "/admin/users/edit/"+idParam)
-		return
-	}
-
-	// Name validation
-	if len(name) < 3 {
-		session.Set("message", "Name must be at least 3 characters")
-		session.Save()
-		ctx.Redirect(http.StatusSeeOther, "/admin/users/edit/"+idParam)
-		return
-	}
-
-	nameRegex := regexp.MustCompile(`^[a-zA-Z ]+$`)
-	if !nameRegex.MatchString(name) {
-		session.Set("message", "Name should contain only letters")
-		session.Save()
-		ctx.Redirect(http.StatusSeeOther, "/admin/users/edit/"+idParam)
-		return
-	}
-
-	// Role validation
-	if role != "admin" && role != "user" {
-		session.Set("message", "Invalid role selected")
-		session.Save()
-		ctx.Redirect(http.StatusSeeOther, "/admin/users/edit/"+idParam)
-		return
-	}
-
-	user := map[string]interface{}{
-		"name":  name,
-		"email": email,
-		"role":  role,
-	}
-
-	err = config.DB.Model(&models.User{}).
-		Where("id = ?", id).
-		Updates(user).Error
-
-	if err != nil {
-		slog.Error("Failed to update user", "user_id", id, "error", err)
-		ctx.String(http.StatusInternalServerError, "Update failed")
-		return
-	}
-
-	slog.Info("User updated successfully", "user_id", id, "email", email)
-	session.Set("message", "User updated successfully")
-	session.Save()
-
-	ctx.Redirect(http.StatusFound, "/admin/users")
-	// successMsg := "User updated successfully!"
-	// ctx.Redirect(http.StatusFound, fmt.Sprintf("/admin/users/edit/%d?success=%s", id, successMsg))
-}
 
 func ShowUserPasswordPage(ctx *gin.Context) {
 
