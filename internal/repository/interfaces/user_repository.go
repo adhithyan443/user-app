@@ -14,4 +14,15 @@ type UserRepository interface {
 	Delete(id uint) error
 
 	GetAll() ([]domain.User, error)
+
+	UpdateProfile(
+		id uint,
+		name string,
+		email string,
+	) error
+
+	UpdatePassword(
+		id uint,
+		password string,
+	) error
 }

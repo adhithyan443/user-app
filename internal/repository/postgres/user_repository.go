@@ -76,3 +76,31 @@ func (r *userRepository) Delete(id uint) error {
 		Delete(&domain.User{}, id).
 		Error
 }
+
+func (r *userRepository) UpdateProfile(
+	id uint,
+	name string,
+	email string,
+) error {
+
+	return r.db.
+		Model(&domain.User{}).
+		Where("id = ?", id).
+		Updates(map[string]interface{}{
+			"name":  name,
+			"email": email,
+		}).
+		Error
+}
+
+func (r *userRepository) UpdatePassword(
+	id uint,
+	password string,
+) error {
+
+	return r.db.
+		Model(&domain.User{}).
+		Where("id = ?", id).
+		Update("password", password).
+		Error
+}
