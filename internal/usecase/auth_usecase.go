@@ -5,7 +5,7 @@ import (
 	"regexp"
 	"user-app/internal/domain"
 	"user-app/internal/repository/interfaces"
-	"user-app/utils"
+	"user-app/internal/utils"
 
 	"golang.org/x/crypto/bcrypt"
 )

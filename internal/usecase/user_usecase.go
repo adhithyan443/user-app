@@ -5,7 +5,7 @@ import (
 	"regexp"
 	"user-app/internal/domain"
 	"user-app/internal/repository/interfaces"
-	"user-app/utils"
+	"user-app/internal/utils"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -72,7 +72,7 @@ func (u *UserUsecase) ChangePassword(
 	req ChangePasswordRequest,
 ) error {
 
-	if !utils.IsStrongPassword(req.NewPassword) { 
+	if !utils.IsStrongPassword(req.NewPassword) {
 		return errors.New(
 			"password must contain uppercase, lowercase, number, and special character",
 		)

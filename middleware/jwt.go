@@ -4,7 +4,7 @@ package middleware
 import (
 	"net/http"
 	"strings"
-	"user-app/utils"
+	"user-app/internal/utils"
 
 	"github.com/gin-gonic/gin"
 )
@@ -26,8 +26,7 @@ func JWTAuth() gin.HandlerFunc {
 			return
 		}
 
-		claims, err := utils.ParseToken(parts[1])
-		
+		claims, err := utils.ParseToken(parts[1])		
 		
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired token"})

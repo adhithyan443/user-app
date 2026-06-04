@@ -5,7 +5,7 @@ import (
 	"regexp"
 	"user-app/internal/domain"
 	"user-app/internal/repository/interfaces"
-	"user-app/utils"
+	"user-app/internal/utils"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -27,15 +27,6 @@ type CreateUserRequest struct {
 	Password string
 	Role     string
 }
-
-
-
-
-
-
-
-
-
 
 func NewAdminUsecase(
 	userRepo interfaces.UserRepository,
@@ -135,6 +126,7 @@ func (u *AdminUsecase) CreateUser(req CreateUserRequest) error {
 	}
 
 	if !utils.IsStrongPassword(req.Password) {
+
 		return errors.New("password must contain uppercase, lowercase, number, and special character")
 	}
 
@@ -162,7 +154,6 @@ func (u *AdminUsecase) CreateUser(req CreateUserRequest) error {
 
 	return u.userRepo.Create(user)
 }
-
 
 // UpdateUserPassword - Admin changes any user's password
 func (u *AdminUsecase) UpdateUserPassword(id uint, newPassword string) error {
