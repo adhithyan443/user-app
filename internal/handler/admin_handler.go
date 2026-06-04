@@ -234,3 +234,54 @@ func (h *AdminHandler) AddNewUser(ctx *gin.Context) {
 	ctx.Redirect(http.StatusSeeOther, "/admin/users")
 }
 
+// ShowUserPasswordPage - GET /admin/users/updatepassword/:id
+func (h *AdminHandler) ShowUserPasswordPage(ctx *gin.Context) {
+	session := sessions.Default(ctx)
+	id := ctx.Param("id")
+	msg := session.Get("message")
+	session.Delete("message")
+	session.Save()
+
+	ctx.HTML(http.StatusOK, "admin_changepassword.html", gin.H{
+		"message": msg,
+		"id":      id,
+	})
+}
+
+// EditUserPasswordPage - POST /admin/users/updatepassword/:id
+func (h *AdminHandler) EditUserPasswordPage(ctx *gin.Context) {
+	session := sessions.Default(ctx)
+
+	idParam := ctx.Param("id")
+	id, err := strconv.Atoi(idParam)
+	if err != nil {
+		slog.Warn("Invalid user ID for password update", "id", idParam)
+		ctx.String(http.StatusBadRequest, "Invalid user ID")
+		return
+	}
+
+	newPassword := ctx.PostForm("newpassword")
+	confirmPassword := ctx.PostForm("confirmpassword")
+
+	if newPassword != confirmPassword {
+		session.Set("message", "Passwords do not match")
+		session.Save()
+		ctx.Redirect(http.StatusSeeOther, "/admin/users/updatepassword/"+idParam)
+		return
+	}
+
+	err = h.adminUsecase.UpdateUserPassword(uint(id), newPassword)
+	if err != nil {
+		slog.Warn("Password update failed", "user_id", id, "error", err)
+		session.Set("message", err.Error())
+		session.Save()
+		ctx.Redirect(http.StatusSeeOther, "/admin/users/updatepassword/"+idParam)
+		return
+	}
+
+	slog.Info("Admin updated user password successfully", "user_id", id)
+	session.Set("message", "Password updated successfully")
+	session.Save()
+
+	ctx.Redirect(http.StatusSeeOther, "/admin/users")
+}

@@ -162,3 +162,24 @@ func (u *AdminUsecase) CreateUser(req CreateUserRequest) error {
 
 	return u.userRepo.Create(user)
 }
+
+
+// UpdateUserPassword - Admin changes any user's password
+func (u *AdminUsecase) UpdateUserPassword(id uint, newPassword string) error {
+
+	if !utils.IsStrongPassword(newPassword) {
+		return errors.New("password must contain uppercase, lowercase, number, and special character")
+	}
+
+	if len(newPassword) < 6 {
+		return errors.New("password must be at least 6 characters")
+	}
+
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+
+	return u.userRepo.UpdatePassword(id, string(hashedPassword))
+}
+
