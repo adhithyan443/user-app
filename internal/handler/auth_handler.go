@@ -21,6 +21,8 @@ func NewAuthHandler(
 	}
 }
 
+
+
 func (h *AuthHandler) HandleSignup(ctx *gin.Context) {
 
 	req := usecase.SignupRequest{
@@ -59,4 +61,53 @@ func (h *AuthHandler) HandleSignup(ctx *gin.Context) {
 		http.StatusSeeOther,
 		"/login",
 	)
+}
+
+func (h *AuthHandler) HandleLogin(ctx *gin.Context) {
+
+	req := usecase.LoginRequest{
+		Email:    ctx.PostForm("email"),
+		Password: ctx.PostForm("password"),
+	}
+
+	res, err := h.authUsecase.Login(req)
+
+	if err != nil {
+
+		ctx.HTML(
+			http.StatusUnauthorized,
+			"login.html",
+			gin.H{
+				"error": err.Error(),
+			},
+		)
+
+		return
+	}
+
+	session := sessions.Default(ctx)
+
+	session.Set("user_id", res.User.ID)
+	session.Set("email", res.User.Email)
+	session.Set("name", res.User.Name)
+	session.Set("role", res.User.Role)
+	session.Set("token", res.Token)
+
+	if err := session.Save(); err != nil {
+		ctx.HTML(
+			http.StatusInternalServerError,
+			"login.html",
+			gin.H{
+				"error": "failed to save session",
+			},
+		)
+		return
+	}
+
+	if res.User.Role == "admin" {
+		ctx.Redirect(http.StatusSeeOther, "/admin")
+		return
+	}
+
+	ctx.Redirect(http.StatusSeeOther, "/home")
 }

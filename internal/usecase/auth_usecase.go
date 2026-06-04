@@ -29,13 +29,21 @@ type SignupRequest struct {
 	Password string
 }
 
+type LoginRequest struct {
+	Email    string
+	Password string
+}
 
+type LoginResponse struct {
+	User  *domain.User
+	Token string
+}
 
 func (u *AuthUsecase) Signup(req SignupRequest) error {
 
 	if req.Name == "" || req.Email == "" || req.Password == "" {
 		return errors.New("all fields are required")
-		
+
 	}
 
 	if len(req.Name) < 3 {
@@ -49,7 +57,7 @@ func (u *AuthUsecase) Signup(req SignupRequest) error {
 	}
 
 	if !utils.IsStrongPassword(req.Password) {
-		
+
 		return errors.New(
 			"password must contain uppercase, lowercase, number, and special character",
 		)
@@ -78,4 +86,43 @@ func (u *AuthUsecase) Signup(req SignupRequest) error {
 	}
 
 	return u.userRepo.Create(&user)
+}
+
+func (u *AuthUsecase) Login(
+	req LoginRequest,
+) (*LoginResponse, error) {
+
+	if req.Email == "" || req.Password == "" {
+		return nil, errors.New("email and password are required")
+	}
+
+	user, err := u.userRepo.FindByEmail(req.Email)
+
+	if err != nil {
+		return nil, errors.New("invalid email or password")
+	}
+
+	err = bcrypt.CompareHashAndPassword(
+		[]byte(user.Password),
+		[]byte(req.Password),
+	)
+
+	if err != nil {
+		return nil, errors.New("invalid email or password")
+	}
+
+	token, err := utils.GenerateToken(
+		user.ID,
+		user.Email,
+		user.Role,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &LoginResponse{
+		User:  user,
+		Token: token,
+	}, nil
 }

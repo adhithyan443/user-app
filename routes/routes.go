@@ -16,7 +16,7 @@ func SetupRoutes(r *gin.Engine, authHandler *handler.AuthHandler) {
 
 	//Login Routes
 	r.GET("/login", handlers.ShowLoginPage)
-	r.POST("/login", handlers.HandleLogin)
+	r.POST("/login", authHandler.HandleLogin)
 	//Signup
 	r.GET("/signup", handlers.ShowSignupPage)
 	r.POST("/signup", authHandler.HandleSignup)
