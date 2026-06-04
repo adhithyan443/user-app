@@ -22,7 +22,7 @@ func NewUserHandler(
 }
 
 func (h *UserHandler) ShowProfilePage(
-	ctx *gin.Context,  
+	ctx *gin.Context,
 ) {
 
 	session := sessions.Default(ctx)
@@ -61,5 +61,71 @@ func (h *UserHandler) ShowProfilePage(
 			"user":    user,
 			"message": msg,
 		},
+	)
+}
+
+func (h *UserHandler) UpdateUserProfile(
+	ctx *gin.Context,
+) {
+
+	session := sessions.Default(ctx)
+
+	id := session.Get("user_id")
+
+	userID, ok := id.(uint)
+
+	if !ok {
+		ctx.Redirect(
+			http.StatusSeeOther,
+			"/login",
+		)
+		return
+	}
+
+	req := usecase.UpdateProfileRequest{
+		ID:    userID,
+		Name:  ctx.PostForm("name"),
+		Email: ctx.PostForm("email"),
+	}
+
+	err := h.userUsecase.UpdateProfile(req)
+
+	if err != nil {
+
+		session.Set(
+			"message",
+			err.Error(),
+		)
+
+		session.Save()
+
+		ctx.Redirect(
+			http.StatusSeeOther,
+			"/profile",
+		)
+
+		return
+	}
+
+	session.Set(
+		"message",
+		"Profile updated successfully",
+	)
+
+	session.Set(
+		"name",
+		req.Name,
+	)
+
+	session.Set(
+		"email",
+		req.Email,
+	)
+
+	session.Save()
+
+	ctx.Redirect(
+		http.StatusSeeOther,
+		"/profile",
 	)
 }

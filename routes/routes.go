@@ -33,7 +33,7 @@ func SetupRoutes(r *gin.Engine, authHandler *handler.AuthHandler,userHandler *ha
 
 		//User route
 		protected.GET("/profile", 	userHandler.ShowProfilePage)
-		protected.POST("/profile/update", handlers.UpdateUserProfile)
+		protected.POST("/profile/update", userHandler.UpdateUserProfile)
 
 		protected.GET("/password", handlers.ShowChangePasswordPage)
 		protected.POST("/password", handlers.ChangePassword)
