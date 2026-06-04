@@ -5,7 +5,8 @@ import (
 	"net/http"
 	"regexp"
 	"user-app/config"
-	"user-app/models"
+	models "user-app/internal/domain"
+
 	"user-app/utils"
 
 	"github.com/gin-contrib/sessions"

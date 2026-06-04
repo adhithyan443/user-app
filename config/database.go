@@ -2,13 +2,13 @@ package config
 
 import (
 	"fmt"
+	"log/slog"
+	"os"
+	"time"
+	models "user-app/internal/domain"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
-	"log/slog"
-	"os"
-	"user-app/models"
-	"time"
 )
 
 var DB *gorm.DB

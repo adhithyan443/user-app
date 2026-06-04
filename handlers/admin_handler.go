@@ -1,14 +1,13 @@
 package handlers
 
 import (
-
 	"errors"
 	"log/slog"
 	"net/http"
 	"regexp"
 	"strconv"
 	"user-app/config"
-	"user-app/models"
+	models "user-app/internal/domain"
 	"user-app/utils"
 
 	"github.com/gin-contrib/sessions"
