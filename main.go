@@ -1,7 +1,7 @@
 package main
 
 import (
-	
+	"fmt"
 	"html/template"
 	"log/slog"
 	"net/http"
@@ -62,7 +62,8 @@ func main() {
 	//Setup all routes
 	routes.SetupRoutes(r)
 
-	slog.Info("Server is running on http://localhost:8080")
+	slog.Info("Server is running on http://localhost:8080 ")
+	fmt.Println("--------------------------------")
 
 	if err := r.Run(":8080"); err != nil {
 		slog.Error("Failed to start server", "error", err)
