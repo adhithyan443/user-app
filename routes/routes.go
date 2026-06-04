@@ -43,7 +43,7 @@ func SetupRoutes(r *gin.Engine, authHandler *handler.AuthHandler,userHandler *ha
 		admin.Use(middleware.AdminRequired())
 		{
 			admin.GET("", handlers.ShowAdminPage)                                 //dashboard
-			
+
 			admin.GET("/users",  adminHandler.GetAllUsers)                              //Read all users
 			admin.GET("/users/edit/:id", adminHandler.EditUserPage)                   //Edit user
 			admin.POST("/users/update/:id", adminHandler.UpdateUserPage)              //Update
@@ -52,8 +52,8 @@ func SetupRoutes(r *gin.Engine, authHandler *handler.AuthHandler,userHandler *ha
 			admin.GET("/users/updatepassword/:id", handlers.ShowUserPasswordPage) //update password
 			admin.POST("/users/updatepassword/:id", handlers.EditUserPasswordPage)
 
-			admin.GET("/newuser", handlers.NewUserPage)
-			admin.POST("/newuser", handlers.AddNewUser)
+			admin.GET("/newuser", adminHandler.NewUserPage)
+			admin.POST("/newuser", adminHandler.AddNewUser)
 
 		}
 

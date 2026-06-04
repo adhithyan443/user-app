@@ -5,6 +5,9 @@ import (
 	"regexp"
 	"user-app/internal/domain"
 	"user-app/internal/repository/interfaces"
+	"user-app/utils"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 type AdminUsecase struct {
@@ -17,6 +20,19 @@ type UpdateUserRequest struct {
 	Email string
 	Role  string
 }
+
+type CreateUserRequest struct {
+	Name     string
+	Email    string
+	Password string
+	Role     string
+}
+
+
+
+
+
+
 
 
 
@@ -44,7 +60,6 @@ func (u *AdminUsecase) DeleteUser(
 	return u.userRepo.Delete(id)
 }
 
-
 func (u *AdminUsecase) GetUserByID(
 	id uint,
 ) (*domain.User, error) {
@@ -60,7 +75,7 @@ func (u *AdminUsecase) UpdateUser(
 		req.Email == "" ||
 		req.Role == "" {
 
-		return errors.New( 
+		return errors.New(
 			"all fields are required",
 		)
 	}
@@ -102,4 +117,48 @@ func (u *AdminUsecase) UpdateUser(
 	user.Role = req.Role
 
 	return u.userRepo.Update(user)
+}
+
+func (u *AdminUsecase) CreateUser(req CreateUserRequest) error {
+
+	if req.Name == "" || req.Email == "" || req.Password == "" || req.Role == "" {
+		return errors.New("all fields are required")
+	}
+
+	if len(req.Name) < 3 {
+		return errors.New("name must be at least 3 characters")
+	}
+
+	nameRegex := regexp.MustCompile(`^[a-zA-Z ]+$`)
+	if !nameRegex.MatchString(req.Name) {
+		return errors.New("name should contain only letters")
+	}
+
+	if !utils.IsStrongPassword(req.Password) {
+		return errors.New("password must contain uppercase, lowercase, number, and special character")
+	}
+
+	if req.Role != "admin" && req.Role != "user" {
+		return errors.New("invalid role selected")
+	}
+
+	// Check if email already exists
+	_, err := u.userRepo.FindByEmail(req.Email)
+	if err == nil {
+		return errors.New("email already exists")
+	}
+
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+
+	user := &domain.User{
+		Name:     req.Name,
+		Email:    req.Email,
+		Password: string(hashedPassword),
+		Role:     req.Role,
+	}
+
+	return u.userRepo.Create(user)
 }

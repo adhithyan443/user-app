@@ -176,3 +176,61 @@ func (h *AdminHandler) UpdateUserPage(ctx *gin.Context) {
 
 	ctx.Redirect(http.StatusFound, "/admin/users")
 }
+
+func (h *AdminHandler) NewUserPage(ctx *gin.Context) {
+	session := sessions.Default(ctx)
+
+	data := gin.H{
+		"message":    session.Get("message"),
+		"form_name":  session.Get("form_name"),
+		"form_email": session.Get("form_email"),
+		"form_role":  session.Get("form_role"),
+	}
+
+	// Clear flash data
+	session.Delete("message")
+	session.Delete("form_name")
+	session.Delete("form_email")
+	session.Delete("form_role")
+	session.Save()
+
+	ctx.HTML(http.StatusOK, "admin_add_user.html", data)
+}
+
+// AddNewUser - POST /admin/newuser
+func (h *AdminHandler) AddNewUser(ctx *gin.Context) {
+	session := sessions.Default(ctx)
+
+	req := usecase.CreateUserRequest{
+		Name:     ctx.PostForm("name"),
+		Email:    ctx.PostForm("email"),
+		Password: ctx.PostForm("password"),
+		Role:     ctx.PostForm("role"),
+	}
+
+	// Save form data for repopulation on error
+	formData := map[string]interface{}{
+		"form_name":  req.Name,
+		"form_email": req.Email,
+		"form_role":  req.Role,
+	}
+
+	err := h.adminUsecase.CreateUser(req)
+	if err != nil {
+		slog.Warn("Create user failed", "error", err)
+		session.Set("message", err.Error())
+		for k, v := range formData {
+			session.Set(k, v)
+		}
+		session.Save()
+		ctx.Redirect(http.StatusSeeOther, "/admin/newuser")
+		return
+	}
+
+	slog.Info("New user created successfully by admin", "email", req.Email)
+	session.Set("message", "User created successfully")
+	session.Save()
+
+	ctx.Redirect(http.StatusSeeOther, "/admin/users")
+}
+
