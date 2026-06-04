@@ -24,3 +24,10 @@ func (u *AdminUsecase) GetAllUsers() (
 ) {
 	return u.userRepo.GetAll()
 }
+
+func (u *AdminUsecase) DeleteUser(
+	id uint,
+) error {
+
+	return u.userRepo.Delete(id)
+}

@@ -46,7 +46,7 @@ func SetupRoutes(r *gin.Engine, authHandler *handler.AuthHandler,userHandler *ha
 			admin.GET("/users",  adminHandler.GetAllUsers)                              //Read all users
 			admin.GET("/users/edit/:id", handlers.EditUserPage)                   //Edit user
 			admin.POST("/users/update/:id", handlers.UpdateUserPage)              //Update
-			admin.GET("/users/delete/:id", handlers.DeleteUser)                   //Delete user
+			admin.GET("/users/delete/:id", adminHandler.DeleteUser)                   //Delete user
 			admin.GET("/users/updatepassword/:id", handlers.ShowUserPasswordPage) //update password
 			admin.POST("/users/updatepassword/:id", handlers.EditUserPasswordPage)
 
