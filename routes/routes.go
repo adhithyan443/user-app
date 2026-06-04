@@ -62,6 +62,6 @@ func SetupRoutes(r *gin.Engine, authHandler *handler.AuthHandler,userHandler *ha
 	api := r.Group("/api")
 	api.Use(middleware.JWTAuth())
 	{
-		api.GET("/profile", handlers.JWTProfile)
+		api.GET("/profile", authHandler.JWTProfile)
 	}
 }

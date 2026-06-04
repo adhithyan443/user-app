@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"log/slog"
 	"net/http"
 	"user-app/internal/usecase"
 
@@ -236,5 +237,30 @@ func (h *AuthHandler) Logout(
 	ctx.Redirect(
 		http.StatusSeeOther,
 		"/login",
+	)
+}
+func (h *AuthHandler) JWTProfile(
+	ctx *gin.Context,
+) {
+
+	userID, _ := ctx.Get("user_id")
+	email, _ := ctx.Get("email")
+	role, _ := ctx.Get("role")
+
+	slog.Info( 
+		"JWT protected route accessed",
+		"user_id", userID,
+		"email", email,
+		"role", role,
+	)
+
+	ctx.JSON(
+		http.StatusOK,
+		gin.H{
+			"message": "JWT authentication successful",
+			"user_id": userID,
+			"email":   email,
+			"role":    role,
+		},
 	)
 }
