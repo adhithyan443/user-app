@@ -37,16 +37,15 @@ func main() {
 	userRepo := postgres.NewUserRepository(db)
 
 	userUsecase := usecase.NewUserUsecase(userRepo)
-
 	userHandler := handler.NewUserHandler(
 		userUsecase,
 	)
 
 	authUsecase := usecase.NewAuthUsecase(userRepo)
-
 	authHandler := handler.NewAuthHandler(authUsecase)
 
-
+	adminUsecase := usecase.NewAdminUsecase(userRepo)
+	adminHandler := handler.NewAdminHandler(adminUsecase)
 
 	config.AutoMigrate(db)
 
@@ -77,7 +76,7 @@ func main() {
 	r.Static("/static", "./templates/static")
 
 	//Setup all routes
-	routes.SetupRoutes(r, authHandler,userHandler)
+	routes.SetupRoutes(r, authHandler, userHandler, adminHandler)
 
 	slog.Info("Server is running on http://localhost:8080")
 

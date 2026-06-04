@@ -8,7 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func SetupRoutes(r *gin.Engine, authHandler *handler.AuthHandler,userHandler *handler.UserHandler) {
+func SetupRoutes(r *gin.Engine, authHandler *handler.AuthHandler,userHandler *handler.UserHandler,adminHandler *handler.AdminHandler) {
 
 	r.GET("/", func(ctx *gin.Context) {
 		ctx.Redirect(303, "/login")
@@ -43,7 +43,7 @@ func SetupRoutes(r *gin.Engine, authHandler *handler.AuthHandler,userHandler *ha
 		admin.Use(middleware.AdminRequired())
 		{
 			admin.GET("", handlers.ShowAdminPage)                                 //dashboard
-			admin.GET("/users", handlers.GetAllUser)                              //Read all users
+			admin.GET("/users",  adminHandler.GetAllUsers)                              //Read all users
 			admin.GET("/users/edit/:id", handlers.EditUserPage)                   //Edit user
 			admin.POST("/users/update/:id", handlers.UpdateUserPage)              //Update
 			admin.GET("/users/delete/:id", handlers.DeleteUser)                   //Delete user
