@@ -2,12 +2,13 @@ package routes
 
 import (
 	"user-app/handlers"
+	"user-app/internal/handler"
 	"user-app/middleware"
 
 	"github.com/gin-gonic/gin"
 )
 
-func SetupRoutes(r *gin.Engine) {
+func SetupRoutes(r *gin.Engine, authHandler *handler.AuthHandler) {
 
 	r.GET("/", func(ctx *gin.Context) {
 		ctx.Redirect(303, "/login")
@@ -18,7 +19,7 @@ func SetupRoutes(r *gin.Engine) {
 	r.POST("/login", handlers.HandleLogin)
 	//Signup
 	r.GET("/signup", handlers.ShowSignupPage)
-	r.POST("/signup", handlers.HandleSignup)
+	r.POST("/signup", authHandler.HandleSignup)
 
 	r.GET("/forgotpassword", handlers.ShowForgotPasswordPage)
 	r.POST("/forgotpassword", handlers.HandleForgotPassword)

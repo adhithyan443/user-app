@@ -1,7 +1,6 @@
 package main
 
 import (
-	
 	"html/template"
 	"log/slog"
 	"net/http"
@@ -15,10 +14,14 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
+
+	"user-app/internal/handler"
+	"user-app/internal/repository/postgres"
+	"user-app/internal/usecase"
 )
 
 func main() {
-	
+
 	//Setup logger
 	setupLogger()
 
@@ -30,7 +33,13 @@ func main() {
 	slog.Info("Starting User Application...")
 
 	// Connect to database + migration
-	db := config.ConnectDatabase() 
+	db := config.ConnectDatabase()
+	userRepo := postgres.NewUserRepository(db)
+
+	authUsecase := usecase.NewAuthUsecase(userRepo)
+
+	authHandler := handler.NewAuthHandler(authUsecase)
+
 	config.AutoMigrate(db)
 
 	r := gin.Default()
@@ -60,7 +69,7 @@ func main() {
 	r.Static("/static", "./templates/static")
 
 	//Setup all routes
-	routes.SetupRoutes(r)
+	routes.SetupRoutes(r, authHandler)
 
 	slog.Info("Server is running on http://localhost:8080")
 
