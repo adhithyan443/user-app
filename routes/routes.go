@@ -29,7 +29,7 @@ func SetupRoutes(r *gin.Engine, authHandler *handler.AuthHandler,userHandler *ha
 	protected.Use(middleware.AuthRequired(), middleware.NoCache())
 	{
 		protected.GET("/home", handlers.ShowHomePage)
-		protected.GET("/logout", handlers.HandleLogout)
+		protected.GET("/logout", authHandler.Logout)
 
 		//User route
 		protected.GET("/profile", 	userHandler.ShowProfilePage)

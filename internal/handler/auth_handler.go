@@ -21,8 +21,6 @@ func NewAuthHandler(
 	}
 }
 
-
-
 func (h *AuthHandler) HandleSignup(ctx *gin.Context) {
 
 	req := usecase.SignupRequest{
@@ -208,6 +206,32 @@ func (h *AuthHandler) HandleForgotPassword(
 	)
 
 	session.Save()
+
+	ctx.Redirect(
+		http.StatusSeeOther,
+		"/login",
+	)
+}
+
+func (h *AuthHandler) Logout(
+	ctx *gin.Context,
+) {
+
+	session := sessions.Default(ctx)
+
+	session.Clear()
+
+	err := session.Save()
+
+	if err != nil {
+
+		ctx.String(
+			http.StatusInternalServerError,
+			"Failed to logout",
+		)
+
+		return
+	}
 
 	ctx.Redirect(
 		http.StatusSeeOther,
