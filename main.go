@@ -30,8 +30,8 @@ func main() {
 	slog.Info("Starting User Application...")
 
 	// Connect to database + migration
-	config.ConnectDatabase() 
-	config.AutoMigrate()
+	db := config.ConnectDatabase() 
+	config.AutoMigrate(db)
 
 	r := gin.Default()
 

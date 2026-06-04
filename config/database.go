@@ -2,18 +2,18 @@ package config
 
 import (
 	"fmt"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 	"log/slog"
 	"os"
 	"time"
 	models "user-app/internal/domain"
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
 )
 
 var DB *gorm.DB
 
-func ConnectDatabase() {
+func ConnectDatabase() *gorm.DB {
 
 	dsn := getDSN()
 
@@ -26,7 +26,6 @@ func ConnectDatabase() {
 			LogLevel:                  logger.Info,
 			IgnoreRecordNotFoundError: true,
 			Colorful:                  true,
-			
 		},
 	)
 	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{
@@ -50,7 +49,11 @@ func ConnectDatabase() {
 	sqlDB.SetConnMaxLifetime(30 * 60)
 
 	slog.Info("Successfully connected to PostgreSQL")
+
+	return DB
 }
+
+
 
 func getDSN() string {
 	return fmt.Sprintf(
@@ -63,8 +66,9 @@ func getDSN() string {
 	)
 }
 
-func AutoMigrate() {
-	err := DB.AutoMigrate(
+func AutoMigrate(db *gorm.DB) {
+
+	err := db.AutoMigrate(
 		&models.User{},
 	)
 
