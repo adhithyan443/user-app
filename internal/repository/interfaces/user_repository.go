@@ -25,4 +25,6 @@ type UserRepository interface {
 		id uint,
 		password string,
 	) error
+
+	CountUsers() (int64, error)
 }

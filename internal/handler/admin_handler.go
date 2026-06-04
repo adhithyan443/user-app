@@ -285,3 +285,30 @@ func (h *AdminHandler) EditUserPasswordPage(ctx *gin.Context) {
 
 	ctx.Redirect(http.StatusSeeOther, "/admin/users")
 }
+
+func (h *AdminHandler) ShowAdminPage(
+	ctx *gin.Context,
+) {
+
+	count, err := h.adminUsecase.GetUserCount()
+
+	if err != nil {
+
+		ctx.String(
+			http.StatusInternalServerError,
+			"Error fetching user count",
+		)
+
+		return
+	}
+
+	ctx.HTML(
+		http.StatusOK,
+		"admin.html",
+		gin.H{
+			"Title": "Admin Dashboard",
+			"User":  "Admin User",
+			"Count": count,
+		},
+	)
+}

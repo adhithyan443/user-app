@@ -1,7 +1,7 @@
 package routes
 
 import (
-	"user-app/handlers"
+	
 	"user-app/internal/handler"
 	"user-app/middleware"
 
@@ -28,7 +28,7 @@ func SetupRoutes(r *gin.Engine, authHandler *handler.AuthHandler,userHandler *ha
 	protected := r.Group("/")
 	protected.Use(middleware.AuthRequired(), middleware.NoCache())
 	{
-		protected.GET("/home", handlers.ShowHomePage)
+		protected.GET("/home", pageHandler.ShowHomePage)
 		protected.GET("/logout", authHandler.Logout)
 
 		//User route
@@ -42,7 +42,7 @@ func SetupRoutes(r *gin.Engine, authHandler *handler.AuthHandler,userHandler *ha
 		admin := protected.Group("/admin")
 		admin.Use(middleware.AdminRequired())
 		{
-			admin.GET("", handlers.ShowAdminPage)                                 //dashboard
+			admin.GET("", adminHandler.ShowAdminPage)                                 //dashboard
 
 			admin.GET("/users",  adminHandler.GetAllUsers)                              //Read all users
 			admin.GET("/users/edit/:id", adminHandler.EditUserPage)                   //Edit user

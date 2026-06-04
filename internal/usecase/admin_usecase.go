@@ -183,3 +183,9 @@ func (u *AdminUsecase) UpdateUserPassword(id uint, newPassword string) error {
 	return u.userRepo.UpdatePassword(id, string(hashedPassword))
 }
 
+func (u *AdminUsecase) GetUserCount() (
+	int64,
+	error,
+) {
+	return u.userRepo.CountUsers()
+}

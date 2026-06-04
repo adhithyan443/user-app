@@ -109,3 +109,20 @@ func (h *PageHandler) ShowForgotPasswordPage(
 		},
 	)
 }
+
+func (h *PageHandler) ShowHomePage(
+	ctx *gin.Context,
+) {
+	session := sessions.Default(ctx)
+
+	name := session.Get("name")
+
+	ctx.HTML(
+		http.StatusOK,
+		"home.html",
+		gin.H{
+			"name": name,
+		},
+	)
+}
+

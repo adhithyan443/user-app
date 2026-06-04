@@ -21,7 +21,6 @@ func (r *userRepository) Create(user *domain.User) error {
 	return r.db.Create(user).Error
 }
 
-
 func (r *userRepository) FindByEmail(email string) (*domain.User, error) {
 
 	var user domain.User
@@ -103,4 +102,23 @@ func (r *userRepository) UpdatePassword(
 		Where("id = ?", id).
 		Update("password", password).
 		Error
+}
+
+func (r *userRepository) CountUsers() (
+	int64,
+	error,
+) {
+
+	var count int64
+
+	err := r.db.
+		Model(&domain.User{}).
+		Count(&count).
+		Error
+
+	if err != nil {
+		return 0, err
+	}
+
+	return count, nil
 }
